@@ -212,9 +212,10 @@
 										<!-- 'npm ci' does a clean, reproducible install from
 										     package-lock.json: it removes node_modules first
 										     (avoiding ENOTEMPTY) and is the right choice for
-										     automated builds. '--loglevel http' prints a fetch
-										     line per package so progress is visible (proves the
-										     step is working / pinpoints a network stall). -->
+										     automated builds. The 'http' log level prints a
+										     fetch line per package so progress is visible
+										     (proves the step is working / pinpoints a network
+										     stall). -->
 										<argument>ci</argument>
 										<argument>--no-audit</argument>
 										<argument>--no-fund</argument>
