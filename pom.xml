@@ -34,9 +34,10 @@
 	<properties>
 		<java.version>25</java.version>
 		<frontend.dir>${project.basedir}/frontend</frontend.dir>
-		<!-- Used only by the optional 'build-frontend' profile.
-		     Override with -Dnpm.executable=npm on Linux/macOS. -->
-		<npm.executable>npm.cmd</npm.executable>
+		<!-- Default npm executable name (Linux/macOS). On Windows the
+		     'windows-npm' profile below overrides this to 'npm.cmd'.
+		     You can also override manually with -Dnpm.executable=... -->
+		<npm.executable>npm</npm.executable>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -149,6 +150,20 @@
 	</build>
 
 	<profiles>
+		<!-- On Windows the npm launcher is 'npm.cmd', not 'npm'. Activated
+		     automatically by the OS family so the 'build-frontend' profile
+		     works cross-platform without manual flags. -->
+		<profile>
+			<id>windows-npm</id>
+			<activation>
+				<os>
+					<family>windows</family>
+				</os>
+			</activation>
+			<properties>
+				<npm.executable>npm.cmd</npm.executable>
+			</properties>
+		</profile>
 		<!-- Optional: rebuild the Angular UI using the locally installed Node/npm
 		     (no download from nodejs.org). Activate explicitly:
 		         mvn -Pbuild-frontend package

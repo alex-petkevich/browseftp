@@ -78,6 +78,14 @@ be on `PATH`):
 ./mvnw -Pbuild-frontend clean package
 ```
 
+The correct npm launcher is selected automatically per OS (`npm` on
+Linux/macOS, `npm.cmd` on Windows). If your npm lives elsewhere or has a
+different name, override it explicitly:
+
+```bash
+./mvnw -Pbuild-frontend -Dnpm.executable=/usr/bin/npm clean package
+```
+
 ## 3. Run the application
 
 ```bash
