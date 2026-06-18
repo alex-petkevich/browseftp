@@ -1,0 +1,349 @@
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: #f1f3f5;
+}
+
+/* ---- Dark theme (Bootstrap 5.3 [data-bs-theme="dark"]) ----
+   Bootstrap handles its own components; we only override the custom
+   classes in this stylesheet that hard-coded light colours. */
+[data-bs-theme="dark"] body                                { background-color: #1a1d20; }
+[data-bs-theme="dark"] .panel                              { background: #212529; border-color: #3a3f45; }
+[data-bs-theme="dark"] .panel.active                       { border-color: #4d9aff; box-shadow: 0 0 0 1px #4d9aff; }
+[data-bs-theme="dark"] .panel-toolbar                      { background: #2b3035; border-bottom-color: #3a3f45; }
+[data-bs-theme="dark"] .panel-path                         { background: #212529; color: #e9ecef; border-bottom-color: #3a3f45; }
+[data-bs-theme="dark"] .panel.active .file-row.selected,
+[data-bs-theme="dark"] .panel.active .file-row.selected > td,
+[data-bs-theme="dark"] .panel.active .file-row.selected:hover > td,
+[data-bs-theme="dark"] .panel.active .icon-cell.selected,
+[data-bs-theme="dark"] .panel.active .brief-item.selected  { background-color: #2c4a7a !important; color: #fff; }
+[data-bs-theme="dark"] .bottom-bar,
+[data-bs-theme="dark"] .status-bar                         { background: #2b3035; border-color: #3a3f45; color: #ced4da; }
+[data-bs-theme="dark"] .dir-icon                           { color: #ffc107; }
+[data-bs-theme="dark"] .file-icon                          { color: #adb5bd; }
+[data-bs-theme="dark"] .viewer-content                     { background: #1e1e1e; color: #d4d4d4; border-color: #3a3f45; }
+[data-bs-theme="dark"] .viewer-image-wrap                  { background: #1e1e1e; border-color: #3a3f45; }
+[data-bs-theme="dark"] .panel.drop-target                  { background: #1f3a5a; outline-color: #4d9aff; }
+[data-bs-theme="dark"] .file-row.drop-target > td,
+[data-bs-theme="dark"] .brief-item.drop-target,
+[data-bs-theme="dark"] .icon-cell.drop-target              { background-color: #4d3a00 !important; outline-color: #ffc107; }
+[data-bs-theme="dark"] .ops-panel                          { background: #212529; border-left-color: #3a3f45; box-shadow: -4px 0 10px rgba(0,0,0,0.5); }
+[data-bs-theme="dark"] .ops-item                           { background: #2b3035; border-color: #3a3f45; }
+[data-bs-theme="dark"] .ops-item.expanded                  { background: #212529; }
+[data-bs-theme="dark"] .ops-item-log                       { border-top-color: #3a3f45; }
+
+.app-shell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panels {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 0;
+  padding: 8px;
+  min-height: 0;
+}
+
+/* Panel host wrappers participate in the flex row.
+   The left wrapper's width is driven by the [style.width.%] binding and must not
+   grow/shrink based on content; the right wrapper fills the remaining space with
+   a flex-basis of 0 so wide content (brief/icons) does not change the split. */
+.panel-wrap {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.panel-wrap.right {
+  flex: 1 1 0;
+}
+
+/* Draggable splitter between the two panels */
+.splitter {
+  flex: 0 0 8px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.splitter:hover .splitter-grip,
+.splitter:active .splitter-grip {
+  background: #0d6efd;
+}
+
+.splitter-grip {
+  width: 2px;
+  height: 40px;
+  border-radius: 2px;
+  background: #adb5bd;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.panel.active {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 1px #0d6efd;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  flex-wrap: wrap;
+}
+
+.panel-path {
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-bottom: 1px solid #e9ecef;
+  white-space: nowrap;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.file-list {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.file-list table {
+  margin-bottom: 0;
+  font-size: 0.85rem;
+}
+
+.file-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Selection highlight is only shown in the ACTIVE panel. */
+.panel.active .file-row.selected {
+  background-color: #cfe2ff !important;
+}
+
+/* Bootstrap tables paint cell backgrounds via box-shadow on the <td>, which
+   hides the <tr> background. Target the cells so the selection is visible in
+   the full (table) view, even on hover — only for the active panel. */
+.panel.active .file-row.selected > td,
+.panel.active .file-row.selected:hover > td {
+  background-color: #cfe2ff !important;
+  box-shadow: none !important;
+}
+
+.icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  padding: 8px;
+  gap: 8px;
+}
+
+.icon-cell {
+  width: 96px;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+.panel.active .icon-cell.selected {
+  background-color: #cfe2ff;
+}
+
+.icon-cell .bi {
+  font-size: 2rem;
+}
+
+.icon-name {
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+.brief-grid {
+  columns: 3 160px;
+  column-gap: 12px;
+  padding: 8px;
+}
+
+.brief-item {
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  break-inside: avoid;
+}
+
+.panel.active .brief-item.selected {
+  background-color: #cfe2ff;
+}
+
+.bottom-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid #ced4da;
+  background: #f8f9fa;
+  flex-wrap: wrap;
+}
+
+.status-bar {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-top: 1px solid #e9ecef;
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.dir-icon { color: #f0ad4e; }
+.file-icon { color: #6c757d; }
+
+/* ---- Drag & drop visual feedback ---- */
+/* Highlight the entire panel when something is being dragged onto its background. */
+.panel.drop-target {
+  outline: 2px dashed #0d6efd;
+  outline-offset: -2px;
+  background: #eaf3ff;
+}
+/* Highlight a folder row when the drag is hovering over it. */
+.file-row.drop-target > td,
+.brief-item.drop-target,
+.icon-cell.drop-target {
+  background-color: #ffe69c !important;
+  outline: 1px dashed #fd7e14;
+  outline-offset: -1px;
+}
+
+.viewer-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 10px;
+  margin: 0;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+/* FTP connection log */
+.ftp-log-content {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 0.78rem;
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* FTP connection manager list */
+.conn-list {
+  max-height: 300px;
+  overflow: auto;
+}
+/* Image preview in the View modal */
+.viewer-image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 60vh;
+  overflow: auto;
+}
+.viewer-image {
+  display: block;
+  max-width: 100%;
+  max-height: 56vh;
+  object-fit: contain;
+}
+/* Operations side panel (right drawer) */
+.ops-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background: #fff;
+  border-left: 1px solid #ced4da;
+  box-shadow: -4px 0 10px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 1050;
+}
+.ops-header {
+  background: #212529;
+  color: #fff;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ops-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 8px;
+}
+.ops-item {
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: #f8f9fa;
+}
+.ops-item-head {
+  padding: 8px;
+  cursor: pointer;
+}
+.ops-item.expanded {
+  background: #fff;
+}
+.ops-item-log {
+  border-top: 1px solid #e9ecef;
+}
+.ops-log-content {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

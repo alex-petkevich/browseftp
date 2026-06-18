@@ -1,0 +1,422 @@
+<div class="app-shell">
+
+  <!-- Application header -->
+  <nav class="navbar navbar-dark bg-dark px-3 py-1">
+    <span class="navbar-brand mb-0 h6">
+      <i class="bi bi-hdd-stack me-2"></i>Tiny Ftp File Browser
+    </span>
+    <span class="text-light small text-truncate" *ngIf="root">
+      <i class="bi bi-folder2-open me-1"></i>Root: {{ root }}
+    </span>
+  </nav>
+
+  <!-- Error banner -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible m-2 py-2" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  </div>
+
+  <!-- Two panels -->
+  <div class="panels" #panelsContainer>
+    <app-panel
+      class="panel-wrap"
+      id="panel-0"
+      [style.width.%]="leftWidth"
+      [title]="panels[0].title"
+      [path]="panels[0].path"
+      [items]="panels[0].items"
+      [selected]="panels[0].selected"
+      [viewMode]="panels[0].viewMode"
+      [loading]="panels[0].loading"
+      [active]="activeIndex === 0"
+      (activate)="setActive(0)"
+      (openDir)="openDir(0, $event)"
+      (goUp)="goUp(0)"
+      (goHome)="goHome(0)"
+      (refresh)="load(0)"
+      (toggleSelect)="toggleSelect(0, $event)"
+      (viewModeChange)="setViewMode(0, $event)"
+      (selectAll)="selectAll(0)"
+      (deselectAll)="deselectAll(0)"
+      (dragStartItem)="onDragStartFromPanel(0, $event)"
+      (itemDrop)="onDropToPanel(0, $event)"
+      (openSettings)="showSettings = true">
+    </app-panel>
+
+    <!-- Draggable splitter -->
+    <div class="splitter" (mousedown)="onSplitterDown($event)" title="Drag to resize">
+      <div class="splitter-grip"></div>
+    </div>
+
+    <app-panel
+      class="panel-wrap right"
+      id="panel-1"
+      [title]="panels[1].title"
+      [path]="panels[1].path"
+      [items]="panels[1].items"
+      [selected]="panels[1].selected"
+      [viewMode]="panels[1].viewMode"
+      [loading]="panels[1].loading"
+      [active]="activeIndex === 1"
+      (activate)="setActive(1)"
+      (openDir)="openDir(1, $event)"
+      (goUp)="goUp(1)"
+      (goHome)="goHome(1)"
+      (refresh)="load(1)"
+      (toggleSelect)="toggleSelect(1, $event)"
+      (viewModeChange)="setViewMode(1, $event)"
+      (selectAll)="selectAll(1)"
+      (deselectAll)="deselectAll(1)"
+      (dragStartItem)="onDragStartFromPanel(1, $event)"
+      (itemDrop)="onDropToPanel(1, $event)"
+      (openSettings)="showSettings = true">
+    </app-panel>
+  </div>
+
+  <!-- Bottom operations bar -->
+  <div class="bottom-bar">
+    <button type="button" class="btn btn-sm btn-dark" (click)="openFtpModal()">
+      <i class="bi bi-hdd-network me-1"></i>Connect FTP
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-dark" (click)="toggleOps()" title="Operations">
+      <i class="bi bi-list-task me-1"></i>Operations
+      <span class="badge text-bg-primary ms-1" *ngIf="activeJobCount > 0">{{ activeJobCount }}</span>
+    </button>
+    <button type="button" class="btn btn-sm btn-primary" (click)="rename()">
+      <i class="bi bi-pencil me-1"></i>Rename (F2)
+    </button>
+    <button type="button" class="btn btn-sm btn-info" (click)="view()">
+      <i class="bi bi-eye me-1"></i>View (F3)
+    </button>
+    <button type="button" class="btn btn-sm btn-success" (click)="copy()">
+      <i class="bi bi-files me-1"></i>Copy &rarr; (F5)
+    </button>
+    <button type="button" class="btn btn-sm btn-warning" (click)="move()">
+      <i class="bi bi-arrow-left-right me-1"></i>Move &rarr;  (F6)
+    </button>
+    <button type="button" class="btn btn-sm btn-secondary" (click)="createDirectory()">
+      <i class="bi bi-folder-plus me-1"></i>New Folder (F7)
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-warning ms-auto"
+            *ngIf="active.kind === 'ftp'"
+            (click)="disconnectFtp(activeIndex)">
+      <i class="bi bi-x-circle me-1"></i>Disconnect
+    </button>
+    <button type="button" class="btn btn-sm btn-danger"
+            [class.ms-auto]="active.kind !== 'ftp'"
+            (click)="remove()">
+      <i class="bi bi-trash me-1"></i>Delete (F8)
+    </button>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showSettings"
+     style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-gear me-2"></i>Settings</h5>
+        <button type="button" class="btn-close" (click)="showSettings = false"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2"><strong>Managed root directory</strong></p>
+        <p class="font-monospace small">{{ root }}</p>
+        <hr>
+        <p class="small mb-1"><strong>Tips</strong></p>
+        <ul class="small text-muted mb-0">
+          <li>Double-click a folder to open it.</li>
+          <li>Ctrl/Cmd-click to select multiple items.</li>
+          <li>Copy/Move transfer from the active panel to the other panel.</li>
+        <p class="mb-2"><strong>Appearance</strong></p>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" role="switch" id="darkModeSwitch"
+                 [checked]="theme === 'dark'" (change)="toggleTheme()">
+          <label class="form-check-label" for="darkModeSwitch">
+            <i class="bi me-1" [class.bi-moon-stars-fill]="theme === 'dark'" [class.bi-sun-fill]="theme === 'light'"></i>
+            Dark theme
+          </label>
+        </div>
+        <hr>
+          <li>Use the view buttons to switch Brief / Full / Icons layouts.</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" (click)="showSettings = false">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Operations panel (right-side drawer) -->
+<div class="ops-panel" *ngIf="showOps">
+  <div class="ops-header">
+    <strong><i class="bi bi-list-task me-2"></i>Operations</strong>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-sm btn-outline-light"
+              [disabled]="!hasCompletedJobs"
+              (click)="clearCompletedJobs()"
+              title="Remove completed/failed/cancelled operations">
+        <i class="bi bi-eraser me-1"></i>Clear completed
+      </button>
+      <button type="button" class="btn-close btn-close-white" (click)="showOps = false"></button>
+    </div>
+  </div>
+  <div class="ops-body">
+    <div *ngIf="!jobs.length" class="text-muted text-center p-3 small">No operations yet.</div>
+    <div *ngFor="let j of jobs" class="ops-item" [class.expanded]="expandedJob === j.id">
+      <div class="ops-item-head" (click)="expandJob(j.id)">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>
+            <i class="bi"
+               [class.bi-arrow-up-circle]="j.kind === 'upload'"
+               [class.bi-arrow-down-circle]="j.kind === 'download'"
+               [class.bi-arrow-left-right]="j.kind === 'copy-remote'"
+               [class.bi-trash]="j.kind === 'ftp-delete'"
+               class="me-2"></i>
+            <strong>{{ j.kind }}</strong>
+          </span>
+          <span class="d-flex align-items-center gap-2">
+            <span class="small"
+                  [class.text-success]="j.status === 'DONE'"
+                  [class.text-danger]="j.status === 'FAILED'"
+                  [class.text-warning]="j.status === 'CANCELLED'"
+                  [class.text-primary]="j.status === 'RUNNING'"
+                  [class.text-muted]="j.status === 'PENDING'">{{ j.status }}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
+                    *ngIf="canCancel(j)"
+                    (click)="cancelJob(j, $event)"
+                    title="Interrupt this operation">
+              <i class="bi bi-stop-circle"></i>
+            </button>
+          </span>
+        </div>
+        <div class="small text-muted text-truncate" [title]="j.description">{{ j.description }}</div>
+        <div class="progress mt-1" style="height: 6px;">
+          <div class="progress-bar"
+               [class.bg-success]="j.status === 'DONE'"
+               [class.bg-danger]="j.status === 'FAILED'"
+               [style.width.%]="jobProgressPct(j)"></div>
+        </div>
+        <div class="small text-muted mt-1">
+          <ng-container *ngIf="j.kind === 'ftp-delete'; else bytesView">
+            {{ j.processed }} / {{ j.total }} file(s)<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
+          </ng-container>
+          <ng-template #bytesView>
+            {{ formatBytes(j.processed) }} / {{ formatBytes(j.total) }}<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
+          </ng-template>
+        </div>
+        <div class="small text-danger" *ngIf="j.error">{{ j.error }}</div>
+      </div>
+      <div class="ops-item-log" *ngIf="expandedJob === j.id">
+        <div *ngIf="!expandedJobDetail" class="text-muted small p-2">Loading log...</div>
+        <pre #opsLog class="ops-log-content" *ngIf="expandedJobDetail" (scroll)="onOpsLogScroll($event)"><ng-container *ngFor="let line of expandedJobDetail.log">{{ line }}
+</ng-container></pre>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Text viewer modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showViewer"
+     style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-truncate">
+          <i class="bi bi-file-earmark-text me-2"></i>{{ viewerName }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeViewer()"></button>
+      </div>
+      <div class="modal-body">
+        <div *ngIf="viewerLoading" class="text-center text-muted p-3">
+          <span class="spinner-border spinner-border-sm"></span> Loading...
+        </div>
+        <div *ngIf="!viewerLoading && viewerImageUrl" class="viewer-image-wrap">
+          <img [src]="viewerImageUrl" [alt]="viewerName" class="viewer-image">
+        </div>
+        <pre *ngIf="!viewerLoading && !viewerImageUrl" class="viewer-content">{{ viewerContent }}</pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" (click)="closeViewer()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FTP connection manager modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showFtp" style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-hdd-network me-2"></i>FTP Connections
+          <span class="badge text-bg-secondary ms-2">{{ ftpTargetIndex === 0 ? 'Left panel' : 'Right panel' }}</span>
+        </h5>
+        <button type="button" class="btn-close" (click)="showFtp = false"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group conn-list">
+          <button type="button" class="list-group-item list-group-item-action"
+                  *ngFor="let conn of ftpConnections; let i = index"
+                  [class.active]="ftpSelected === i"
+                  (click)="selectConn(i)" (dblclick)="connectFtp()">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-server me-2"></i><strong>{{ conn.name }}</strong></span>
+              <small class="text-muted">{{ (conn.user || 'anonymous') + '@' + conn.host + ':' + conn.port }}</small>
+            </div>
+          </button>
+          <div *ngIf="!ftpConnections.length" class="text-muted p-3 text-center">
+            No saved connections yet. Click <strong>Add</strong> to create one.
+          </div>
+        </div>
+        <div class="ftp-log mt-3" *ngIf="ftpLog.length">
+          <label class="form-label mb-1 small fw-bold">Connection log</label>
+          <pre class="ftp-log-content"><ng-container *ngFor="let line of ftpLog">{{ line }}
+</ng-container></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary me-auto" (click)="ftpAdd()">
+          <i class="bi bi-plus-lg me-1"></i>Add
+        </button>
+        <button type="button" class="btn btn-outline-secondary" (click)="ftpEdit()" [disabled]="ftpSelected < 0">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </button>
+        <button type="button" class="btn btn-outline-danger" (click)="ftpDelete()" [disabled]="ftpSelected < 0">
+          <i class="bi bi-trash me-1"></i>Delete
+        </button>
+        <button type="button" class="btn btn-outline-warning"
+                *ngIf="panels[ftpTargetIndex].kind === 'ftp'"
+                (click)="disconnectFtp(ftpTargetIndex)">
+          <i class="bi bi-x-circle me-1"></i>Disconnect
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="showFtp = false">Close</button>
+        <button type="button" class="btn btn-primary" (click)="connectFtp()"
+                [disabled]="ftpConnecting || ftpSelected < 0">
+          <span *ngIf="ftpConnecting" class="spinner-border spinner-border-sm me-1"></span>
+          Connect
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Conflict resolution modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showConflict" style="background: rgba(0,0,0,0.6);">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+          {{ conflictVerb }} — destination already contains some items
+        </h5>
+        <button type="button" class="btn-close" (click)="cancelConflict()"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small mb-2">
+          Target: <span class="font-monospace">{{ conflictDestLabel }}</span>
+          &nbsp;&middot;&nbsp;
+          {{ conflictList.length }} conflict(s)
+        </p>
+        <div class="conflict-list mb-3">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Source</th>
+                <th>Destination (existing)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of conflictList">
+                <td>
+                  <i class="bi me-1"
+                     [class.bi-folder-fill]="c.directory"
+                     [class.bi-file-earmark]="!c.directory"></i>{{ c.name }}
+                </td>
+                <td>{{ c.directory ? '&lt;DIR&gt;' : formatBytesConflict(c.srcSize) }}</td>
+                <td>{{ c.directory ? '&lt;DIR&gt;' : formatBytesConflict(c.dstSize) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fw-bold mb-2">What to do for each conflict?</p>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" id="cfRename" value="rename" [(ngModel)]="conflictPolicy">
+          <label class="form-check-label" for="cfRename">
+            <strong>Rename</strong> — keep existing, save the new copy as <em>name 1</em>, <em>name 2</em>, …
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" id="cfReplace" value="replace" [(ngModel)]="conflictPolicy">
+          <label class="form-check-label" for="cfReplace">
+            <strong>Replace</strong> — overwrite the existing item(s).
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" id="cfResume" value="resume" [(ngModel)]="conflictPolicy">
+          <label class="form-check-label" for="cfResume">
+            <strong>Continue (resume)</strong> — pick up partial download from where it stopped.
+            <span class="small text-muted">(falls back to <em>Replace</em> for non-download transfers)</span>
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" id="cfSkip" value="skip" [(ngModel)]="conflictPolicy">
+          <label class="form-check-label" for="cfSkip">
+            <strong>Skip</strong> — leave the existing destination alone, copy only the rest.
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="cancelConflict()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="applyConflictPolicy()">
+          {{ conflictVerb }} with selected option
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FTP connection editor (add/edit) modal -->
+<div class="modal d-block" tabindex="-1" *ngIf="showFtpEditor" style="background: rgba(0,0,0,0.6);">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil-square me-2"></i>{{ ftpEditorMode === 'add' ? 'Add connection' : 'Edit connection' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="showFtpEditor = false"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label mb-1">Name</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.name" placeholder="My server">
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">Host</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.host" placeholder="ftp.example.com">
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">Port</label>
+          <input type="number" class="form-control form-control-sm" [(ngModel)]="ftpForm.port">
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">User</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.user" placeholder="anonymous">
+        </div>
+        <div class="mb-2">
+          <label class="form-label mb-1">Password</label>
+          <input type="password" class="form-control form-control-sm" [(ngModel)]="ftpForm.password">
+        </div>
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="passiveCheckEdit" [(ngModel)]="ftpForm.passive">
+          <label class="form-check-label" for="passiveCheckEdit">Passive connection</label>
+        </div>
+        <p class="small text-muted mt-2 mb-0">Connections are saved in your browser's local storage.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="showFtpEditor = false">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="ftpSaveEditor()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>

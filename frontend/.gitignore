@@ -1,0 +1,7 @@
+# Angular / Node build artifacts
+/node
+/node_modules
+/dist
+/.angular
+npm-debug.log*
+

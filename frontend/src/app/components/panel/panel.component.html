@@ -1,0 +1,128 @@
+<div class="panel"
+     [class.active]="active"
+     [class.drop-target]="panelDragOver"
+     (click)="activate.emit()"
+     (dragover)="onPanelDragOver($event)"
+     (dragleave)="onPanelDragLeave($event)"
+     (drop)="onPanelDrop($event)">
+  <!-- Top tool panel -->
+  <div class="panel-toolbar">
+    <strong class="me-2">{{ title }}</strong>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="Navigation">
+      <button type="button" class="btn btn-outline-secondary" title="Home"
+              (click)="goHome.emit(); $event.stopPropagation()">
+        <i class="bi bi-house"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" title="Up one level"
+              [disabled]="atRoot" (click)="goUp.emit(); $event.stopPropagation()">
+        <i class="bi bi-arrow-90deg-up"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" title="Refresh"
+              (click)="refresh.emit(); $event.stopPropagation()">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="View mode">
+      <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'brief'"
+              title="Brief view" (click)="setView('brief'); $event.stopPropagation()">
+        <i class="bi bi-list"></i>
+      </button>
+      <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'full'"
+              title="Full view" (click)="setView('full'); $event.stopPropagation()">
+        <i class="bi bi-table"></i>
+      </button>
+      <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'icons'"
+              title="Icons view" (click)="setView('icons'); $event.stopPropagation()">
+        <i class="bi bi-grid-3x3-gap"></i>
+      </button>
+    </div>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="Selection">
+      <button type="button" class="btn btn-outline-secondary" title="Select all"
+              (click)="selectAll.emit(); $event.stopPropagation()">
+        <i class="bi bi-check-all"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" title="Deselect all"
+              (click)="deselectAll.emit(); $event.stopPropagation()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" title="Settings"
+            (click)="openSettings.emit(); $event.stopPropagation()">
+      <i class="bi bi-gear"></i>
+    </button>
+  </div>
+  <!-- Current path -->
+  <div class="panel-path">{{ path.startsWith('/') ? path : '/' + path }}</div>
+  <!-- Listing -->
+  <div class="file-list">
+    <div *ngIf="loading" class="text-center text-muted p-3">
+      <span class="spinner-border spinner-border-sm"></span> Loading...
+    </div>
+    <!-- FULL VIEW -->
+    <table *ngIf="!loading && viewMode === 'full'" class="table table-sm table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th class="text-end">Size</th>
+          <th>Modified</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of items"
+            class="file-row"
+            [class.selected]="isSelected(item)"
+            [class.drop-target]="rowDragOverPath === item.path"
+            draggable="true"
+            (dragstart)="onRowDragStart(item, $event)"
+            (dragover)="onRowDragOver(item, $event)"
+            (drop)="onRowDrop(item, $event)"
+            (click)="onRowClick(item, $event)"
+            (dblclick)="onRowDblClick(item)">
+          <td><i class="bi me-2" [ngClass]="iconClass(item)"></i>{{ item.name }}</td>
+          <td class="text-end">{{ formatSize(item) }}</td>
+          <td>{{ formatDate(item) }}</td>
+        </tr>
+        <tr *ngIf="items.length === 0">
+          <td colspan="3" class="text-center text-muted">Empty directory</td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- BRIEF VIEW -->
+    <div *ngIf="!loading && viewMode === 'brief'" class="brief-grid">
+      <div *ngFor="let item of items"
+           class="brief-item"
+           [class.selected]="isSelected(item)"
+           [class.drop-target]="rowDragOverPath === item.path"
+           draggable="true"
+           (dragstart)="onRowDragStart(item, $event)"
+           (dragover)="onRowDragOver(item, $event)"
+           (drop)="onRowDrop(item, $event)"
+           (click)="onRowClick(item, $event)"
+           (dblclick)="onRowDblClick(item)">
+        <i class="bi me-1" [ngClass]="iconClass(item)"></i>{{ item.name }}
+      </div>
+      <div *ngIf="items.length === 0" class="text-muted">Empty directory</div>
+    </div>
+    <!-- ICONS VIEW -->
+    <div *ngIf="!loading && viewMode === 'icons'" class="icon-grid">
+      <div *ngFor="let item of items"
+           class="icon-cell"
+           [class.selected]="isSelected(item)"
+           [class.drop-target]="rowDragOverPath === item.path"
+           draggable="true"
+           (dragstart)="onRowDragStart(item, $event)"
+           (dragover)="onRowDragOver(item, $event)"
+           (drop)="onRowDrop(item, $event)"
+           (click)="onRowClick(item, $event)"
+           (dblclick)="onRowDblClick(item)">
+        <div><i class="bi" [ngClass]="iconClass(item)"></i></div>
+        <div class="icon-name">{{ item.name }}</div>
+      </div>
+      <div *ngIf="items.length === 0" class="text-muted">Empty directory</div>
+    </div>
+  </div>
+  <!-- Status bar -->
+  <div class="status-bar">
+    {{ items.length }} item(s), {{ selected.size }} selected
+  </div>
+</div>
