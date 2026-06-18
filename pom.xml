@@ -173,10 +173,12 @@
 			<id>build-frontend</id>
 			<build>
 				<plugins>
-					<!-- Wipe stale Angular build caches on 'clean'. node_modules is
-					     intentionally NOT deleted here: 'npm ci' below removes and
-					     recreates it cleanly, which also avoids the rename-based
-					     'ENOTEMPTY' dedup errors. -->
+					<!-- On 'clean' wipe the Angular build caches AND the committed
+					     compiled UI under src/main/resources/static, so the fresh
+					     'npm run build' output below is the single source of truth
+					     and a stale index.html can't shadow the new bundle.
+					     node_modules is intentionally NOT deleted: 'npm ci' below
+					     removes and recreates it cleanly (avoiding ENOTEMPTY). -->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-clean-plugin</artifactId>
@@ -187,6 +189,9 @@
 								</fileset>
 								<fileset>
 									<directory>${frontend.dir}/dist</directory>
+								</fileset>
+								<fileset>
+									<directory>${project.basedir}/src/main/resources/static</directory>
 								</fileset>
 							</filesets>
 						</configuration>
@@ -243,19 +248,23 @@
 						</executions>
 					</plugin>
 
-					<!-- Copy the fresh Angular output into the static resources -->
+					<!-- Copy the fresh Angular output into the committed static
+					     resources (src/main/resources/static). Runs after npm-build
+					     (generate-resources) and BEFORE the default resource copy
+					     (process-resources), so the freshly built UI is what gets
+					     packaged into the jar. -->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-resources-plugin</artifactId>
 						<executions>
 							<execution>
 								<id>copy-frontend</id>
-								<phase>process-resources</phase>
+								<phase>generate-resources</phase>
 								<goals>
 									<goal>copy-resources</goal>
 								</goals>
 								<configuration>
-									<outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+									<outputDirectory>${project.basedir}/src/main/resources/static</outputDirectory>
 									<resources>
 										<resource>
 											<directory>${frontend.dir}/dist</directory>
