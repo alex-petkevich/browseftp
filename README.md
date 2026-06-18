@@ -132,6 +132,13 @@ frontend/                           # Angular + Bootstrap UI
 See [BUILD.md](BUILD.md) for a step-by-step guide to building the backend, the
 Angular UI, and combined builds.
 
+## Running as a service (Debian/systemd)
+
+See [deploy/DEPLOY.md](deploy/DEPLOY.md) for a complete guide to running the
+application as a managed `systemd` service (dedicated user, auto-start on boot,
+restart on failure). A ready-to-edit unit file is provided at
+[deploy/ftpclient.service](deploy/ftpclient.service).
+
 ## License
 
 [MIT](LICENSE) — do whatever you like, no warranty.
