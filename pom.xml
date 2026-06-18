@@ -187,10 +187,22 @@
 								<configuration>
 									<executable>${npm.executable}</executable>
 									<workingDirectory>${frontend.dir}</workingDirectory>
+									<!-- Stream npm output live (and connect stdin) so the
+									     build doesn't look "silently hung" while npm works. -->
+									<inheritIo>true</inheritIo>
+									<environmentVariables>
+										<!-- Non-interactive, no progress spinner: avoids
+										     stalls when there is no TTY. -->
+										<CI>true</CI>
+										<npm_config_progress>false</npm_config_progress>
+										<npm_config_audit>false</npm_config_audit>
+										<npm_config_fund>false</npm_config_fund>
+									</environmentVariables>
 									<arguments>
 										<argument>install</argument>
 										<argument>--no-audit</argument>
 										<argument>--no-fund</argument>
+										<argument>--no-progress</argument>
 									</arguments>
 								</configuration>
 							</execution>
@@ -203,6 +215,11 @@
 								<configuration>
 									<executable>${npm.executable}</executable>
 									<workingDirectory>${frontend.dir}</workingDirectory>
+									<inheritIo>true</inheritIo>
+									<environmentVariables>
+										<CI>true</CI>
+										<npm_config_progress>false</npm_config_progress>
+									</environmentVariables>
 									<arguments>
 										<argument>run</argument>
 										<argument>build</argument>
