@@ -7,6 +7,7 @@ import { FtpService, FtpSettings, FtpConnectionProfile } from './services/ftp.se
 import { JobsService, JobSummary, JobDetail } from './services/jobs.service';
 import { PanelComponent, ViewMode, PanelDropEvent } from './components/panel/panel.component';
 type PanelKind = 'local' | 'ftp';
+type SortKey = 'name' | 'date' | 'size';
 interface PanelState {
   title: string;
   path: string;
@@ -20,6 +21,10 @@ interface PanelState {
   cursor: number;
   /** Whether this panel shows the local filesystem or a remote FTP server. */
   kind: PanelKind;
+  /** Current sort column. */
+  sortKey: SortKey;
+  /** Sort direction (true = ascending). */
+  sortAsc: boolean;
   /** FTP connection settings when kind === 'ftp'. */
   ftp?: FtpSettings;
 }
@@ -32,6 +37,8 @@ interface PanelState {
 export class AppComponent implements OnInit, OnDestroy {
   root = '';
   error = '';
+  /** Current year, used in the copyright notice. */
+  readonly currentYear = new Date().getFullYear();
   showSettings = false;
   // Text viewer modal state
   showViewer = false;
@@ -58,6 +65,8 @@ export class AppComponent implements OnInit, OnDestroy {
   expandedJobDetail: JobDetail | null = null;
   showOps = false;
   private pollHandle: any = null;
+  /** Per-job transfer-speed samples (bytes/sec), derived from successive polls. */
+  private _speedSamples: Record<string, { processed: number; time: number; bps: number }> = {};
   /** Width of the left panel as a percentage of the panels container. */
   leftWidth = 50;
   private dragging = false;
@@ -66,8 +75,8 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Tracks whether the user has scrolled the log up; when true, auto-scroll pauses. */
   private opsLogAutoStick = true;
   panels: PanelState[] = [
-    { title: 'Left', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local' },
-    { title: 'Right', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local' }
+    { title: 'Left', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local', sortKey: 'name', sortAsc: true },
+    { title: 'Right', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local', sortKey: 'name', sortAsc: true }
   ];
   activeIndex = 0;
   constructor(private fileService: FileService, private ftpService: FtpService, private jobsService: JobsService) {}
@@ -119,6 +128,7 @@ export class AppComponent implements OnInit, OnDestroy {
   refreshJobs(): void {
     this.jobsService.list(20).subscribe({
       next: list => {
+        this.updateSpeeds(list);
         this.jobs = list;
         if (this.expandedJob) {
           this.jobsService.get(this.expandedJob).subscribe({
@@ -175,6 +185,98 @@ export class AppComponent implements OnInit, OnDestroy {
   jobProgressPct(j: JobSummary): number {
     if (!j.total) return j.status === 'DONE' ? 100 : 0;
     return Math.round((j.processed / j.total) * 100);
+  }
+
+  /**
+   * Updates per-job transfer-speed samples from a fresh poll. Speed is the
+   * change in {@code processed} bytes over the elapsed wall-clock time, lightly
+   * smoothed (EMA) so the displayed value doesn't jump around. Only RUNNING
+   * byte-transfer jobs are tracked; finished/removed jobs drop their samples.
+   */
+  private updateSpeeds(list: JobSummary[]): void {
+    const now = Date.now();
+    const live = new Set<string>();
+    for (const j of list) {
+      if (j.status !== 'RUNNING' || j.kind === 'ftp-delete') continue;
+      live.add(j.id);
+      const prev = this._speedSamples[j.id];
+      if (prev) {
+        const dt = (now - prev.time) / 1000;
+        const db = j.processed - prev.processed;
+        if (dt > 0 && db >= 0) {
+          const inst = db / dt;
+          const bps = prev.bps > 0 ? prev.bps * 0.6 + inst * 0.4 : inst;
+          this._speedSamples[j.id] = { processed: j.processed, time: now, bps };
+        } else {
+          this._speedSamples[j.id] = { processed: j.processed, time: now, bps: prev.bps };
+        }
+      } else {
+        this._speedSamples[j.id] = { processed: j.processed, time: now, bps: 0 };
+      }
+    }
+    // Drop samples for jobs that are no longer running.
+    for (const id of Object.keys(this._speedSamples)) {
+      if (!live.has(id)) delete this._speedSamples[id];
+    }
+  }
+
+  /** Current transfer speed (bytes/sec) for a running job, or 0 if unknown. */
+  jobSpeed(j: JobSummary): number {
+    const s = this._speedSamples[j.id];
+    return s ? s.bps : 0;
+  }
+
+  /** Combined live speed (bytes/sec) across all currently running transfers. */
+  get aggregateSpeed(): number {
+    let bps = 0;
+    for (const j of this.jobs) bps += this.jobSpeed(j);
+    return bps;
+  }
+
+  /** True when a live speed can be shown for this job. */
+  showSpeed(j: JobSummary): boolean {
+    return j.status === 'RUNNING' && j.kind !== 'ftp-delete' && this.jobSpeed(j) > 0;
+  }
+
+  /** Estimated seconds remaining for a running job, or null if not computable. */
+  jobEtaSeconds(j: JobSummary): number | null {
+    const bps = this.jobSpeed(j);
+    if (bps <= 0 || !j.total || j.total <= j.processed) return null;
+    return (j.total - j.processed) / bps;
+  }
+
+  /** Formats a byte/sec rate, e.g. "1.2 MB/s". */
+  formatSpeed(bps: number): string {
+    return this.formatBytes(bps) + '/s';
+  }
+
+  /** Formats a duration in seconds as a compact "1h 02m", "3m 05s" or "12s". */
+  formatDuration(seconds: number | null): string {
+    if (seconds == null || !isFinite(seconds) || seconds < 0) return '';
+    const s = Math.round(seconds);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    if (m < 60) return m + 'm ' + String(rs).padStart(2, '0') + 's';
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    return h + 'h ' + String(rm).padStart(2, '0') + 'm';
+  }
+
+  /**
+   * Average speed (bytes/sec) of a finished byte-transfer job, computed from the
+   * total processed bytes over its run duration. Returns 0 when not applicable.
+   */
+  jobAverageSpeed(j: JobSummary): number {
+    if (j.status !== 'DONE' || j.kind === 'ftp-delete') return 0;
+    if (!j.startedAt || !j.finishedAt || !j.processed) return 0;
+    const secs = (new Date(j.finishedAt).getTime() - new Date(j.startedAt).getTime()) / 1000;
+    return secs > 0 ? j.processed / secs : 0;
+  }
+
+  /** True when a final average speed can be shown for a completed job. */
+  showAverageSpeed(j: JobSummary): boolean {
+    return this.jobAverageSpeed(j) > 0;
   }
 
   /** True for statuses that allow cancellation. */
@@ -350,6 +452,7 @@ export class AppComponent implements OnInit, OnDestroy {
         if (res.path !== undefined && res.path !== null) {
           panel.path = res.path;
         }
+        this.sortPanelItems(panel);
         panel.selected.clear();
         panel.cursor = -1;
         panel.loading = false;
@@ -399,6 +502,43 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   setViewMode(index: number, mode: ViewMode): void {
     this.panels[index].viewMode = mode;
+  }
+
+  /**
+   * Changes the sort column for a panel. Clicking the current column toggles
+   * the direction; switching column starts ascending. Directories always stay
+   * grouped before files (orthodox file-manager convention).
+   */
+  setSort(index: number, key: SortKey): void {
+    const panel = this.panels[index];
+    if (panel.sortKey === key) {
+      panel.sortAsc = !panel.sortAsc;
+    } else {
+      panel.sortKey = key;
+      panel.sortAsc = true;
+    }
+    const cursorPath = panel.cursor >= 0 ? panel.items[panel.cursor]?.path : null;
+    this.sortPanelItems(panel);
+    panel.cursor = cursorPath ? panel.items.findIndex(i => i.path === cursorPath) : -1;
+  }
+
+  /** Sorts a panel's items in place by its current sort key/direction. */
+  private sortPanelItems(panel: PanelState): void {
+    const dir = panel.sortAsc ? 1 : -1;
+    const byName = (a: FileItem, b: FileItem) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    panel.items.sort((a, b) => {
+      // Folders first, regardless of direction.
+      if (a.directory !== b.directory) return a.directory ? -1 : 1;
+      let cmp = 0;
+      switch (panel.sortKey) {
+        case 'date': cmp = (a.lastModified || 0) - (b.lastModified || 0); break;
+        case 'size': cmp = (a.size || 0) - (b.size || 0); break;
+        default: cmp = byName(a, b); break;
+      }
+      if (cmp === 0) cmp = byName(a, b);
+      return cmp * dir;
+    });
   }
   selectAll(index: number): void {
     const panel = this.panels[index];
@@ -921,6 +1061,7 @@ export class AppComponent implements OnInit, OnDestroy {
         panel.path = res.path ?? '/';
         panel.home = res.path ?? '/';
         panel.items = res.items;
+        this.sortPanelItems(panel);
         panel.selected.clear();
         panel.cursor = -1;
         this.activeIndex = index;

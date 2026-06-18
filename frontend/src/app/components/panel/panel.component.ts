@@ -4,6 +4,9 @@ import { FileItem } from '../../services/file.service';
 
 export type ViewMode = 'brief' | 'full' | 'icons';
 
+/** Column the panel listing is sorted by. */
+export type SortKey = 'name' | 'date' | 'size';
+
 /** Payload the panel emits when something is dropped on it. */
 export interface PanelDropEvent {
   /** When dropped on a folder row, the folder; otherwise the panel background. */
@@ -30,6 +33,8 @@ export class PanelComponent {
   @Input() active = false;
   @Input() viewMode: ViewMode = 'full';
   @Input() loading = false;
+  @Input() sortKey: SortKey = 'name';
+  @Input() sortAsc = true;
 
   @Output() activate = new EventEmitter<void>();
   @Output() openDir = new EventEmitter<FileItem>();
@@ -38,6 +43,7 @@ export class PanelComponent {
   @Output() refresh = new EventEmitter<void>();
   @Output() toggleSelect = new EventEmitter<{ item: FileItem; additive: boolean }>();
   @Output() viewModeChange = new EventEmitter<ViewMode>();
+  @Output() sortChange = new EventEmitter<SortKey>();
   @Output() selectAll = new EventEmitter<void>();
   @Output() deselectAll = new EventEmitter<void>();
   @Output() openSettings = new EventEmitter<void>();
@@ -66,6 +72,16 @@ export class PanelComponent {
 
   setView(mode: ViewMode): void {
     this.viewModeChange.emit(mode);
+  }
+
+  setSort(key: SortKey): void {
+    this.sortChange.emit(key);
+  }
+
+  /** Bootstrap icon class for the sort indicator on a given column. */
+  sortIcon(key: SortKey): string {
+    if (this.sortKey !== key) return 'bi-filter';
+    return this.sortAsc ? 'bi-sort-down-alt' : 'bi-sort-up-alt';
   }
 
   isSelected(item: FileItem): boolean {

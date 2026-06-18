@@ -8,6 +8,10 @@
     <span class="text-light small text-truncate" *ngIf="root">
       <i class="bi bi-folder2-open me-1"></i>Root: {{ root }}
     </span>
+    <span class="text-secondary small ms-auto d-none d-md-inline">
+      &copy; {{ currentYear }} Aliaksandr Piatkevich &middot;
+      <a class="link-light text-decoration-none" href="https://homesite.by" target="_blank" rel="noopener">homesite.by</a>
+    </span>
   </nav>
 
   <!-- Error banner -->
@@ -29,6 +33,8 @@
       [viewMode]="panels[0].viewMode"
       [loading]="panels[0].loading"
       [active]="activeIndex === 0"
+      [sortKey]="panels[0].sortKey"
+      [sortAsc]="panels[0].sortAsc"
       (activate)="setActive(0)"
       (openDir)="openDir(0, $event)"
       (goUp)="goUp(0)"
@@ -36,6 +42,7 @@
       (refresh)="load(0)"
       (toggleSelect)="toggleSelect(0, $event)"
       (viewModeChange)="setViewMode(0, $event)"
+      (sortChange)="setSort(0, $event)"
       (selectAll)="selectAll(0)"
       (deselectAll)="deselectAll(0)"
       (dragStartItem)="onDragStartFromPanel(0, $event)"
@@ -58,6 +65,8 @@
       [viewMode]="panels[1].viewMode"
       [loading]="panels[1].loading"
       [active]="activeIndex === 1"
+      [sortKey]="panels[1].sortKey"
+      [sortAsc]="panels[1].sortAsc"
       (activate)="setActive(1)"
       (openDir)="openDir(1, $event)"
       (goUp)="goUp(1)"
@@ -65,6 +74,7 @@
       (refresh)="load(1)"
       (toggleSelect)="toggleSelect(1, $event)"
       (viewModeChange)="setViewMode(1, $event)"
+      (sortChange)="setSort(1, $event)"
       (selectAll)="selectAll(1)"
       (deselectAll)="deselectAll(1)"
       (dragStartItem)="onDragStartFromPanel(1, $event)"
@@ -81,6 +91,7 @@
     <button type="button" class="btn btn-sm btn-outline-dark" (click)="toggleOps()" title="Operations">
       <i class="bi bi-list-task me-1"></i>Operations
       <span class="badge text-bg-primary ms-1" *ngIf="activeJobCount > 0">{{ activeJobCount }}</span>
+      <span class="badge text-bg-secondary ms-1" *ngIf="aggregateSpeed > 0">{{ formatSpeed(aggregateSpeed) }}</span>
     </button>
     <button type="button" class="btn btn-sm btn-primary" (click)="rename()">
       <i class="bi bi-pencil me-1"></i>Rename (F2)
@@ -140,6 +151,11 @@
         <hr>
           <li>Use the view buttons to switch Brief / Full / Icons layouts.</li>
         </ul>
+        <hr>
+        <p class="small text-muted mb-0 text-center">
+          &copy; {{ currentYear }} Aliaksandr Piatkevich &mdash;
+          <a href="https://homesite.by" target="_blank" rel="noopener">homesite.by</a>
+        </p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" (click)="showSettings = false">Close</button>
@@ -205,6 +221,12 @@
           <ng-template #bytesView>
             {{ formatBytes(j.processed) }} / {{ formatBytes(j.total) }}<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
           </ng-template>
+        </div>
+        <div class="small text-primary mt-1" *ngIf="showSpeed(j)">
+          <i class="bi bi-speedometer2 me-1"></i>{{ formatSpeed(jobSpeed(j)) }}<span *ngIf="jobEtaSeconds(j) as eta"> — {{ formatDuration(eta) }} left</span>
+        </div>
+        <div class="small text-muted mt-1" *ngIf="showAverageSpeed(j)">
+          <i class="bi bi-speedometer2 me-1"></i>avg {{ formatSpeed(jobAverageSpeed(j)) }}
         </div>
         <div class="small text-danger" *ngIf="j.error">{{ j.error }}</div>
       </div>

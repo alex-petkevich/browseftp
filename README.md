@@ -36,9 +36,6 @@ Requirements: **Java 21+** (the build is configured for Java 25; lower the
 `java.version` property in `pom.xml` if you need to build with an older JDK).
 
 ```bash
-# Build
-./mvnw clean package
-
 # Run
 java -jar target/ftpclient-1.0.0-alpha.jar
 
@@ -138,3 +135,6 @@ Angular UI, and combined builds.
 ## License
 
 [MIT](LICENSE) — do whatever you like, no warranty.
+
+Copyright © 2026 [Aliaksandr Piatkevich](https://homesite.by).
+

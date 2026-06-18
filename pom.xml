@@ -13,6 +13,17 @@
 	<version>1.0.0-alpha</version>
 	<name>Tiny FTP File Browser</name>
 	<description>Self-contained Spring Boot + Angular two-panel file manager for local and FTP file systems.</description>
+	<url>https://homesite.by</url>
+	<organization>
+		<name>homesite.by</name>
+		<url>https://homesite.by</url>
+	</organization>
+	<developers>
+		<developer>
+			<name>Aliaksandr Piatkevich</name>
+			<url>https://homesite.by</url>
+		</developer>
+	</developers>
 	<licenses>
 		<license>
 			<name>MIT License</name>

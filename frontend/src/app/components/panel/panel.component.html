@@ -46,6 +46,20 @@
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="Sort">
+      <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'name'"
+              title="Sort by name" (click)="setSort('name'); $event.stopPropagation()">
+        Name <i class="bi" [ngClass]="sortIcon('name')"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'date'"
+              title="Sort by date" (click)="setSort('date'); $event.stopPropagation()">
+        Date <i class="bi" [ngClass]="sortIcon('date')"></i>
+      </button>
+      <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'size'"
+              title="Sort by size" (click)="setSort('size'); $event.stopPropagation()">
+        Size <i class="bi" [ngClass]="sortIcon('size')"></i>
+      </button>
+    </div>
     <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" title="Settings"
             (click)="openSettings.emit(); $event.stopPropagation()">
       <i class="bi bi-gear"></i>
@@ -62,9 +76,15 @@
     <table *ngIf="!loading && viewMode === 'full'" class="table table-sm table-hover mb-0">
       <thead class="table-light">
         <tr>
-          <th>Name</th>
-          <th class="text-end">Size</th>
-          <th>Modified</th>
+          <th class="sortable" (click)="setSort('name'); $event.stopPropagation()">
+            Name <i class="bi" [ngClass]="sortIcon('name')"></i>
+          </th>
+          <th class="text-end sortable" (click)="setSort('size'); $event.stopPropagation()">
+            Size <i class="bi" [ngClass]="sortIcon('size')"></i>
+          </th>
+          <th class="sortable" (click)="setSort('date'); $event.stopPropagation()">
+            Modified <i class="bi" [ngClass]="sortIcon('date')"></i>
+          </th>
         </tr>
       </thead>
       <tbody>
