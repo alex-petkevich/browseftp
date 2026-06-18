@@ -173,19 +173,15 @@
 			<id>build-frontend</id>
 			<build>
 				<plugins>
-					<!-- Wipe stale frontend caches on 'clean' so the npm install
-					     below always starts from a clean tree. This avoids
-					     'ENOTEMPTY' rename errors caused by a node_modules tree
-					     left over from another machine/OS (esbuild and other
-					     binaries are platform-specific). -->
+					<!-- Wipe stale Angular build caches on 'clean'. node_modules is
+					     intentionally NOT deleted here: 'npm ci' below removes and
+					     recreates it cleanly, which also avoids the rename-based
+					     'ENOTEMPTY' dedup errors. -->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-clean-plugin</artifactId>
 						<configuration>
 							<filesets>
-								<fileset>
-									<directory>${frontend.dir}/node_modules</directory>
-								</fileset>
 								<fileset>
 									<directory>${frontend.dir}/.angular</directory>
 								</fileset>
@@ -212,19 +208,18 @@
 									<!-- Stream npm output live (and connect stdin) so the
 									     build doesn't look "silently hung" while npm works. -->
 									<inheritIo>true</inheritIo>
-									<environmentVariables>
-										<!-- Non-interactive, no progress spinner: avoids
-										     stalls when there is no TTY. -->
-										<CI>true</CI>
-										<npm_config_progress>false</npm_config_progress>
-										<npm_config_audit>false</npm_config_audit>
-										<npm_config_fund>false</npm_config_fund>
-									</environmentVariables>
 									<arguments>
-										<argument>install</argument>
+										<!-- 'npm ci' does a clean, reproducible install from
+										     package-lock.json: it removes node_modules first
+										     (avoiding ENOTEMPTY) and is the right choice for
+										     automated builds. '--loglevel http' prints a fetch
+										     line per package so progress is visible (proves the
+										     step is working / pinpoints a network stall). -->
+										<argument>ci</argument>
 										<argument>--no-audit</argument>
 										<argument>--no-fund</argument>
-										<argument>--no-progress</argument>
+										<argument>--loglevel</argument>
+										<argument>http</argument>
 									</arguments>
 								</configuration>
 							</execution>
@@ -238,10 +233,6 @@
 									<executable>${npm.executable}</executable>
 									<workingDirectory>${frontend.dir}</workingDirectory>
 									<inheritIo>true</inheritIo>
-									<environmentVariables>
-										<CI>true</CI>
-										<npm_config_progress>false</npm_config_progress>
-									</environmentVariables>
 									<arguments>
 										<argument>run</argument>
 										<argument>build</argument>
