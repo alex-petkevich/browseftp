@@ -145,3 +145,12 @@ server talks to the running backend.
 - **`npm install` complains about esbuild** — make sure you're online and that
   no firewall blocks `registry.npmjs.org`. The `package.json` pins esbuild via
   `overrides` so reproducible builds are possible.
+- **`npm ERR! ENOTEMPTY: directory not empty, rename ...node_modules/...`** — a
+  stale or partially-installed `node_modules` (often copied from another
+  machine/OS, which also has the wrong platform binaries). Delete it and rebuild:
+  ```bash
+  rm -rf frontend/node_modules frontend/.angular
+  ./mvnw -Pbuild-frontend clean package
+  ```
+  The `build-frontend` profile now also wipes these folders during `clean`, so a
+  `clean package` starts from a fresh tree.

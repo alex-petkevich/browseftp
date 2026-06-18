@@ -173,6 +173,28 @@
 			<id>build-frontend</id>
 			<build>
 				<plugins>
+					<!-- Wipe stale frontend caches on 'clean' so the npm install
+					     below always starts from a clean tree. This avoids
+					     'ENOTEMPTY' rename errors caused by a node_modules tree
+					     left over from another machine/OS (esbuild and other
+					     binaries are platform-specific). -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-clean-plugin</artifactId>
+						<configuration>
+							<filesets>
+								<fileset>
+									<directory>${frontend.dir}/node_modules</directory>
+								</fileset>
+								<fileset>
+									<directory>${frontend.dir}/.angular</directory>
+								</fileset>
+								<fileset>
+									<directory>${frontend.dir}/dist</directory>
+								</fileset>
+							</filesets>
+						</configuration>
+					</plugin>
 					<plugin>
 						<groupId>org.codehaus.mojo</groupId>
 						<artifactId>exec-maven-plugin</artifactId>
