@@ -28,6 +28,8 @@ import java.util.function.Function;
 @Service
 public class FtpService {
     private static final long MAX_VIEW_BYTES = 2L * 1024 * 1024;
+    /** Larger limit for binary/image previews (photos routinely exceed a few MB). */
+    private static final long MAX_RAW_BYTES = 25L * 1024 * 1024;
     /** Buffer size for streamed transfers (also the granularity for progress / cancel). */
     private static final int TRANSFER_BUF = 64 * 1024;
     private final StorageService storage;
@@ -342,7 +344,7 @@ public class FtpService {
                 if (in == null) {
                     throw new StorageException("Cannot open remote file: " + c.getReplyString());
                 }
-                byte[] bytes = in.readNBytes((int) MAX_VIEW_BYTES);
+                byte[] bytes = in.readNBytes((int) MAX_RAW_BYTES);
                 c.completePendingCommand();
                 String name = basename(path);
                 String type = guessContentType(name);

@@ -335,6 +335,13 @@ public class StorageService {
     /** Maximum number of bytes returned by {@link #readText(String)}. */
     private static final long MAX_VIEW_BYTES = 2L * 1024 * 1024;
 
+    /**
+     * Maximum number of bytes returned by {@link #readBytes(String)} (binary /
+     * image previews). Larger than the text limit since photos routinely exceed
+     * a couple of megabytes.
+     */
+    private static final long MAX_RAW_BYTES = 25L * 1024 * 1024;
+
     /** Raw file payload returned by {@link #readBytes(String)}. */
     public record RawFile(String name, String contentType, byte[] bytes) {
     }
@@ -357,9 +364,9 @@ public class StorageService {
         } catch (IOException e) {
             throw new StorageException("Cannot read file: " + e.getMessage(), e);
         }
-        if (size > MAX_VIEW_BYTES) {
-            throw new StorageException("File is too large to view (" + size + " bytes, limit "
-                    + MAX_VIEW_BYTES + ").");
+        if (size > MAX_RAW_BYTES) {
+            throw new StorageException("File is too large to preview (" + size + " bytes, limit "
+                    + MAX_RAW_BYTES + ").");
         }
         try {
             byte[] bytes = Files.readAllBytes(target);
