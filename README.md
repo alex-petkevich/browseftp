@@ -11,6 +11,8 @@ runnable `jar`. No database, no external services — just the jar and a JRE.
 
 ## Features
 
+<img src="browse-scr.png" alt="Tiny Web FTP File Browser" width="800"/>
+
 - **Two side-by-side panels** with a draggable splitter; each panel can show a
   local directory or a remote FTP server independently.
 - **FTP connection manager** with multiple saved profiles (passive/active mode,
