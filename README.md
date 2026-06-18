@@ -1,9 +1,10 @@
-# Tiny FTP File Browser
+# Tiny Web FTP File Browser
 
-A self-contained **Spring Boot** application that lets you browse and manage
+A self-contained application that lets you browse and manage
 files on the **local filesystem** and on **remote FTP servers** through a
 **two-panel** web UI built with **Angular + Bootstrap** — in the spirit of
-classic orthodox file managers (Norton/Total/Midnight Commander).
+classic orthodox file managers (Norton/Total/Midnight Commander) - as a 
+File manager and FTP client for NAS or local home servers.
 
 Backend (REST API) and frontend (compiled Angular) are packaged into a single
 runnable `jar`. No database, no external services — just the jar and a JRE.
