@@ -1,5 +1,5 @@
 [Unit]
-Description=Tiny FTP File Browser (Spring Boot)
+Description=Tiny FTP File Browser
 Documentation=https://homesite.by
 After=network-online.target
 Wants=network-online.target

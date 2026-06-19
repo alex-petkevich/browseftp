@@ -3,7 +3,7 @@ REM ===========================================================================
 REM Convenience wrapper around the Maven Wrapper.
 REM
 REM Builds the runnable Spring Boot jar (backend + embedded Angular UI):
-REM   target\ftpclient-1.0.0-alpha.jar
+REM   target\ftpclient-1.0.1.jar
 REM
 REM Any extra arguments are forwarded to Maven, so you can do e.g.:
 REM   build.cmd -DskipTests

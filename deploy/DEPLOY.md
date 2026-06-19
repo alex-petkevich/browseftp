@@ -14,7 +14,7 @@ A ready-to-edit unit file is provided at [`deploy/ftpclient.service`](ftpclient.
   sudo apt update
   sudo apt install -y openjdk-21-jre-headless   # or a newer JDK if available
   ```
-- The built application jar: `target/ftpclient-1.0.0-alpha.jar`
+- The built application jar: `target/ftpclient-1.0.1.jar`
   (see [BUILD.md](../BUILD.md)).
 
 ## 2. Create a service user and directories
@@ -32,7 +32,7 @@ sudo mkdir -p /srv/ftpfiles
 
 ```bash
 # Copy and give it a stable name the unit file expects
-sudo cp target/ftpclient-1.0.0-alpha.jar /opt/ftpclient/ftpclient.jar
+sudo cp target/ftpclient-1.0.1.jar /opt/ftpclient/ftpclient.jar
 
 # Ownership
 sudo chown -R ftpclient:ftpclient /opt/ftpclient
@@ -79,7 +79,7 @@ Then open `http://SERVER_IP:8899`.
 
 ```bash
 sudo systemctl stop ftpclient
-sudo cp target/ftpclient-1.0.0-alpha.jar /opt/ftpclient/ftpclient.jar
+sudo cp target/ftpclient-1.0.1.jar /opt/ftpclient/ftpclient.jar
 sudo chown ftpclient:ftpclient /opt/ftpclient/ftpclient.jar
 sudo systemctl start ftpclient
 ```

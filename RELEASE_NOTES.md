@@ -1,5 +1,66 @@
 # Release Notes
 
+## v1.0.0-beta — 2026-06-19
+
+A large feature update focused on the image viewer, downloads, sorting,
+transfer feedback, and persistent server-side settings.
+
+### New features
+
+- **Download to your computer**: each panel now has a **Download** button that
+  saves the selected item(s) — a single file as-is, or multiple items / a
+  folder as a streamed **ZIP**. Works for both local and FTP panels.
+- **Image viewer (F3) overhaul**:
+  - **Prev / Next** navigation through all images in the current directory,
+    with a position indicator.
+  - **Click the image** to open the original at full size in a new tab.
+  - Keyboard shortcuts: **Esc** closes, **←/→** step between images.
+  - **HEIC/HEIF support** — converted to JPEG in the browser for display.
+  - Larger preview size limit (up to 25 MB) so typical photos open fine.
+- **Sort the file list** by **Name / Date / Size**, ascending/descending —
+  via toolbar buttons or by clicking the column headers. Folders stay grouped
+  first; each panel remembers its own sort.
+- **Transfer speed feedback** in the Operations window:
+  - live **speed + ETA** while a transfer runs,
+  - **aggregate speed** badge on the bottom bar,
+  - final **average speed** shown when a job completes.
+- **Persistent settings**: theme, saved FTP connections, and last-opened
+  directories are now stored **server-side** in the user's home directory
+  (`~/.browseftp/settings.json`) instead of the browser, so they follow you
+  across browsers and devices. Existing `localStorage` settings are migrated
+  automatically.
+- **Last-opened directory** for each panel is restored on startup.
+- **Version info** is shown in the Settings dialog (served from `/api/info`).
+- **Copyright / attribution** added across the UI and the startup log.
+
+### Deployment
+
+- New **systemd** guide and ready-to-edit unit file for running on Debian
+  (`deploy/DEPLOY.md`, `deploy/ftpclient.service`).
+- New `app.settings-file` property to relocate the settings file.
+
+### REST API additions
+
+- `GET /api/files/download`, `GET /api/files/download-zip`
+- `POST /api/ftp/download-file`, `POST /api/ftp/download-zip`
+- `GET/PUT /api/settings`, `GET /api/info`
+
+### Build / fixes
+
+- Cross-platform frontend build: the correct `npm` launcher is selected per OS,
+  `npm ci` is used for reproducible installs, and stale Angular caches are
+  cleaned automatically.
+- The committed compiled UI is now refreshed reliably so freshly built changes
+  always end up in the jar.
+- Image preview no longer fails with HTTP 400 on larger photos.
+
+### Upgrade notes
+
+- On first run after upgrading, settings move from the browser to
+  `~/.browseftp/settings.json` (auto-migrated). **FTP passwords are stored in
+  plaintext** in that file — restrict its permissions (e.g. `chmod 600`) if the
+  host is shared.
+
 ## v0.1.0 — First public release
 
 The first release of **Tiny FTP File Browser**: a self-contained Spring Boot

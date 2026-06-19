@@ -44,7 +44,7 @@ Requirements: **Java 21+** (the build is configured for Java 25; lower the
 
 ```bash
 # Run
-java -jar target/ftpclient-1.0.0-beta.jar
+java -jar target/ftpclient-1.0.1.jar
 
 # Optional flags:
 #   --app.root-dir=/path/to/managed/folder   (default: current working dir)
