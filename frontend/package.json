@@ -1,6 +1,6 @@
 {
   "name": "ftpclient-ui",
-  "version": "1.0.0-beta",
+  "version": "1.0.1",
   "description": "Angular + Bootstrap two-panel UI for the Tiny FTP File Browser.",
   "license": "MIT",
   "private": true,
