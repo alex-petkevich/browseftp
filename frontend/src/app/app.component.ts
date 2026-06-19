@@ -40,6 +40,8 @@ export class AppComponent implements OnInit, OnDestroy {
   error = '';
   /** Current year, used in the copyright notice. */
   readonly currentYear = new Date().getFullYear();
+  /** Application version, shown in the Settings dialog (from the backend). */
+  appVersion = '';
   showSettings = false;
   // Text viewer modal state
   showViewer = false;
@@ -121,6 +123,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.fileService.root().subscribe({
       next: r => (this.root = r.root),
       error: e => this.handleError(e)
+    });
+    this.fileService.info().subscribe({
+      next: i => (this.appVersion = i.version),
+      error: () => {}
     });
     const lastPaths = this.loadLastPaths();
     this.load(0, lastPaths[0] ?? undefined, lastPaths[0] !== null);

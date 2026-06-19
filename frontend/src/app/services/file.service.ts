@@ -39,6 +39,11 @@ export class FileService {
     return this.http.get<{ root: string }>(`${this.base}/root`);
   }
 
+  /** Application name and version (from the jar manifest). */
+  info(): Observable<{ name: string; version: string }> {
+    return this.http.get<{ name: string; version: string }>('/api/info');
+  }
+
   /** Direct URL that downloads a single local file as an attachment. */
   downloadUrl(path: string): string {
     return `${this.base}/download?path=${encodeURIComponent(path)}`;
