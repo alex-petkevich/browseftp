@@ -39,6 +39,17 @@ export class FileService {
     return this.http.get<{ root: string }>(`${this.base}/root`);
   }
 
+  /** Direct URL that downloads a single local file as an attachment. */
+  downloadUrl(path: string): string {
+    return `${this.base}/download?path=${encodeURIComponent(path)}`;
+  }
+
+  /** Direct URL that downloads several local files/folders as a ZIP. */
+  downloadZipUrl(paths: string[]): string {
+    const qs = paths.map(p => `paths=${encodeURIComponent(p)}`).join('&');
+    return `${this.base}/download-zip?${qs}`;
+  }
+
   list(path: string): Observable<ListResponse> {
     return this.http.get<ListResponse>(`${this.base}/list`, { params: { path } });
   }

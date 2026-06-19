@@ -46,6 +46,12 @@
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
+    <button type="button" class="btn btn-sm btn-outline-success me-2"
+            title="Download selected to my computer"
+            [disabled]="selected.size === 0"
+            (click)="download.emit(); $event.stopPropagation()">
+      <i class="bi bi-download"></i>
+    </button>
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Sort">
       <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'name'"
               title="Sort by name" (click)="setSort('name'); $event.stopPropagation()">

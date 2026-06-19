@@ -355,6 +355,72 @@ public class FtpService {
         });
     }
 
+    /** Streams a single remote file to the given output (browser download). */
+    public void streamFile(FtpConn conn, String path, java.io.OutputStream out) {
+        FTPClient c = open(conn);
+        try (InputStream in = c.retrieveFileStream(path)) {
+            if (in == null) {
+                throw new StorageException("Cannot open remote file: " + c.getReplyString());
+            }
+            in.transferTo(out);
+            c.completePendingCommand();
+        } catch (IOException e) {
+            throw new StorageException("Cannot download remote file: " + e.getMessage(), e);
+        } finally {
+            close(c);
+        }
+    }
+
+    /** Streams the given remote paths (files/folders) as a ZIP to the output. */
+    public void writeZip(FtpConn conn, List<String> paths, java.io.OutputStream out) {
+        FTPClient c = open(conn);
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(out)) {
+            for (String p : paths) {
+                addToZip(c, p, parentRemote(p), zip);
+            }
+        } catch (IOException e) {
+            throw new StorageException("Cannot create zip: " + e.getMessage(), e);
+        } finally {
+            close(c);
+        }
+    }
+
+    private void addToZip(FTPClient c, String remote, String base,
+                          java.util.zip.ZipOutputStream zip) throws IOException {
+        String entryName = relativeRemote(base, remote);
+        if (isDirectory(c, remote)) {
+            if (!entryName.isEmpty()) {
+                zip.putNextEntry(new java.util.zip.ZipEntry(entryName + "/"));
+                zip.closeEntry();
+            }
+            for (FTPFile f : c.listFiles(remote)) {
+                String name = f.getName();
+                if (name == null || name.equals(".") || name.equals("..")) {
+                    continue;
+                }
+                addToZip(c, joinRemote(remote, name), base, zip);
+            }
+        } else {
+            zip.putNextEntry(new java.util.zip.ZipEntry(entryName));
+            try (InputStream in = c.retrieveFileStream(remote)) {
+                if (in != null) {
+                    in.transferTo(zip);
+                }
+            }
+            c.completePendingCommand();
+            zip.closeEntry();
+        }
+    }
+
+    /** Path of {@code full} relative to {@code base} (forward slashes, no leading slash). */
+    private static String relativeRemote(String base, String full) {
+        String prefix = base.equals("/") ? "/" : base + "/";
+        if (full.startsWith(prefix)) {
+            return full.substring(prefix.length());
+        }
+        return basename(full);
+    }
+
     private static String guessContentType(String name) {
         String lower = name == null ? "" : name.toLowerCase();
         if (lower.endsWith(".png")) return "image/png";

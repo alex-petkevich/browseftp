@@ -79,6 +79,63 @@ public class StorageService {
     }
 
     /**
+     * Resolves a path for downloading a single file: validates the sandbox,
+     * ensures it exists and is a regular file.
+     */
+    public Path resolveForDownload(String path) {
+        Path file = resolve(path);
+        if (!Files.exists(file)) {
+            throw new StorageException("File does not exist: " + path);
+        }
+        if (Files.isDirectory(file)) {
+            throw new StorageException("Cannot download a directory directly; use the zip download.");
+        }
+        return file;
+    }
+
+    /**
+     * Streams the given paths (files and/or directories) as a ZIP into
+     * {@code out}. Entry names are relative to each selection's parent so that a
+     * selected folder keeps its structure inside the archive.
+     */
+    public void writeZip(List<String> paths, java.io.OutputStream out) {
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(out)) {
+            for (String p : paths) {
+                Path abs = resolve(p);
+                if (!Files.exists(abs)) {
+                    continue;
+                }
+                Path base = abs.getParent();
+                if (Files.isDirectory(abs)) {
+                    try (Stream<Path> walk = Files.walk(abs)) {
+                        for (Path f : (Iterable<Path>) walk::iterator) {
+                            String name = base.relativize(f).toString().replace('\\', '/');
+                            if (name.isEmpty()) {
+                                continue;
+                            }
+                            if (Files.isDirectory(f)) {
+                                zip.putNextEntry(new java.util.zip.ZipEntry(name + "/"));
+                                zip.closeEntry();
+                            } else {
+                                zip.putNextEntry(new java.util.zip.ZipEntry(name));
+                                Files.copy(f, zip);
+                                zip.closeEntry();
+                            }
+                        }
+                    }
+                } else {
+                    String name = base.relativize(abs).toString().replace('\\', '/');
+                    zip.putNextEntry(new java.util.zip.ZipEntry(name));
+                    Files.copy(abs, zip);
+                    zip.closeEntry();
+                }
+            }
+        } catch (IOException e) {
+            throw new StorageException("Cannot create zip: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Lists the directory at the given relative path.
      */
     public List<FileItem> list(String relativePath) {

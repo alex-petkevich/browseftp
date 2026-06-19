@@ -57,6 +57,16 @@ export class FtpService {
       `${this.base}/content`, { conn, path });
   }
 
+  /** Downloads a single remote file to the browser (streamed through the server). */
+  downloadFile(conn: FtpSettings, path: string): Observable<Blob> {
+    return this.http.post(`${this.base}/download-file`, { conn, path }, { responseType: 'blob' });
+  }
+
+  /** Downloads several remote files/folders to the browser as a ZIP. */
+  downloadZip(conn: FtpSettings, paths: string[]): Observable<Blob> {
+    return this.http.post(`${this.base}/download-zip`, { conn, paths }, { responseType: 'blob' });
+  }
+
   /** local -> ftp */
   upload(conn: FtpSettings, localPaths: string[], remoteDir: string,
          overwrite?: OverwritePolicy): Observable<{ jobId: string }> {

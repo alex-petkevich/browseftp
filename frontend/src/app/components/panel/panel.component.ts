@@ -44,6 +44,7 @@ export class PanelComponent {
   @Output() toggleSelect = new EventEmitter<{ item: FileItem; additive: boolean }>();
   @Output() viewModeChange = new EventEmitter<ViewMode>();
   @Output() sortChange = new EventEmitter<SortKey>();
+  @Output() download = new EventEmitter<void>();
   @Output() selectAll = new EventEmitter<void>();
   @Output() deselectAll = new EventEmitter<void>();
   @Output() openSettings = new EventEmitter<void>();

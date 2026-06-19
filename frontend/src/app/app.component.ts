@@ -803,6 +803,63 @@ export class AppComponent implements OnInit, OnDestroy {
   private isImageFile(name: string): boolean {
     return /\.(png|jpe?g|gif|bmp|webp|svg|ico)$/i.test(name);
   }
+
+  /**
+   * Downloads the selected files/folders of the given panel to the user's
+   * computer. Local downloads use a direct (streamed) URL; FTP downloads stream
+   * through the server. A single file downloads as-is; multiple items (or a
+   * folder) download as a ZIP archive.
+   */
+  downloadSelected(index: number): void {
+    const panel = this.panels[index];
+    const paths = Array.from(panel.selected);
+    if (!paths.length) {
+      this.error = 'Nothing selected to download.';
+      return;
+    }
+    const singleFile = paths.length === 1
+      && !(panel.items.find(i => i.path === paths[0])?.directory);
+
+    if (panel.kind === 'ftp' && panel.ftp) {
+      const blob$ = singleFile
+        ? this.ftpService.downloadFile(panel.ftp, paths[0])
+        : this.ftpService.downloadZip(panel.ftp, paths);
+      const fallbackName = singleFile ? (paths[0].split('/').pop() || 'download') : 'download.zip';
+      blob$.subscribe({
+        next: blob => this.saveBlob(blob, fallbackName),
+        error: e => this.handleError(e)
+      });
+      return;
+    }
+    // Local: navigate to the streaming URL via a temporary anchor.
+    const url = singleFile
+      ? this.fileService.downloadUrl(paths[0])
+      : this.fileService.downloadZipUrl(paths);
+    this.triggerDownload(url);
+  }
+
+  /** Triggers a browser download from a same-origin URL. */
+  private triggerDownload(url: string): void {
+    const a = document.createElement('a');
+    a.href = url;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  /** Saves an in-memory blob to disk with the given filename. */
+  private saveBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   closeViewer(): void {
     this.releaseViewerImage();
     this.showViewer = false;

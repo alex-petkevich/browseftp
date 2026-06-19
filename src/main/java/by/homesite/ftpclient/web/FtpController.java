@@ -7,12 +7,16 @@ import by.homesite.ftpclient.service.JobService;
 import by.homesite.ftpclient.service.JobService.Job;
 import by.homesite.ftpclient.service.OverwritePolicy;
 import by.homesite.ftpclient.service.StorageService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 /**
@@ -39,6 +43,8 @@ public class FtpController {
     public record UploadReq(FtpConn conn, List<String> localPaths, String remoteDir, String overwrite) {}
     public record DownloadReq(FtpConn conn, List<String> remotePaths, String localDir, String overwrite) {}
     public record CopyRemoteReq(FtpConn srcConn, FtpConn destConn, List<String> remotePaths, String remoteDir, String overwrite) {}
+    public record DownloadFileReq(FtpConn conn, String path) {}
+    public record DownloadZipReq(FtpConn conn, List<String> paths) {}
     @PostMapping("/connect")
     public Map<String, Object> connect(@RequestBody ListReq req) {
         return ftp.connectWithLog(req.conn(), req.path());
@@ -73,6 +79,31 @@ public class FtpController {
                 .contentType(MediaType.parseMediaType(r.contentType()))
                 .header("Content-Disposition", "inline; filename=\"" + r.name() + "\"")
                 .body(r.bytes());
+    }
+
+    /** Streams a single remote file to the browser as an attachment. */
+    @PostMapping("/download-file")
+    public ResponseEntity<StreamingResponseBody> downloadFile(@RequestBody DownloadFileReq req) {
+        String p = req.path();
+        String filename = p.substring(p.lastIndexOf('/') + 1);
+        StreamingResponseBody body = out -> ftp.streamFile(req.conn(), p, out);
+        ContentDisposition cd = ContentDisposition.attachment()
+                .filename(filename, StandardCharsets.UTF_8).build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, cd.toString())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(body);
+    }
+
+    /** Streams several remote files/folders to the browser as a ZIP archive. */
+    @PostMapping("/download-zip")
+    public ResponseEntity<StreamingResponseBody> downloadZip(@RequestBody DownloadZipReq req) {
+        StreamingResponseBody body = out -> ftp.writeZip(req.conn(), req.paths(), out);
+        ContentDisposition cd = ContentDisposition.attachment().filename("download.zip").build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, cd.toString())
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(body);
     }
     @PostMapping("/upload")
     public Map<String, Object> upload(@RequestBody UploadReq req) {

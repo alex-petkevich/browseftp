@@ -78,6 +78,8 @@ All standard Spring Boot configuration mechanisms are supported (CLI args,
 | GET    | `/api/files/list`     | `?path=`                   | List a directory               |
 | GET    | `/api/files/content`  | `?path=`                   | Read text content (preview)    |
 | GET    | `/api/files/raw`      | `?path=`                   | Read raw bytes (image preview) |
+| GET    | `/api/files/download` | `?path=`                   | Download one file (attachment) |
+| GET    | `/api/files/download-zip` | `?paths=&paths=`       | Download files/folders as ZIP  |
 | POST   | `/api/files/mkdir`    | `{ parent, name }`         | Create a directory             |
 | POST   | `/api/files/rename`   | `{ path, newName }`        | Rename a file/dir              |
 | POST   | `/api/files/copy`     | `{ paths[], destination }` | Copy into destination dir      |
@@ -97,6 +99,8 @@ stateless (no session per user).
 | POST   | `/api/ftp/list`       | List a remote directory                                  |
 | POST   | `/api/ftp/content`    | Read remote text file                                    |
 | POST   | `/api/ftp/raw`        | Read remote bytes (image preview)                        |
+| POST   | `/api/ftp/download-file` | Download one remote file to the browser (attachment)  |
+| POST   | `/api/ftp/download-zip`  | Download remote files/folders to the browser as a ZIP |
 | POST   | `/api/ftp/mkdir`      | Create remote directory                                  |
 | POST   | `/api/ftp/rename`     | Rename remote entry                                      |
 | POST   | `/api/ftp/upload`     | Upload local paths to a remote dir (returns `jobId`)     |
