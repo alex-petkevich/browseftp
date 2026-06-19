@@ -60,7 +60,8 @@ Key things to check in the unit:
 | `ExecStart` java    | Full path to `java` if not on the service user's PATH.         |
 | `--server.port=`    | HTTP port (default in the unit: `8899`).                       |
 | `--app.root-dir=`   | Directory the local side is sandboxed to (`/srv/ftpfiles`).    |
-| `ReadWritePaths=`   | Must include the managed directory for file operations.        |
+| `--app.settings-file=` | Where user settings are stored. Under the hardened unit the service user has no home and `ProtectHome=true`, so it points at `/opt/ftpclient/settings.json`. |
+| `ReadWritePaths=`   | Must include the managed directory **and** the settings dir.   |
 
 ## 5. Enable and start
 

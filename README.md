@@ -14,7 +14,9 @@ runnable `jar`. No database, no external services — just the jar and a JRE.
 - **Two side-by-side panels** with a draggable splitter; each panel can show a
   local directory or a remote FTP server independently.
 - **FTP connection manager** with multiple saved profiles (passive/active mode,
-  UTF-8 paths). Profiles are stored in the browser's `localStorage`.
+  UTF-8 paths). Settings (saved profiles, theme, last-opened directories) are
+  persisted **server-side** in the user's home directory
+  (`~/.browseftp/settings.json`), so they follow you across browsers/devices.
 - **File operations** between panels:
   - Rename (F2), View / preview (F3), Copy → (F5), Move → (F6),
     New folder (F7), Delete (F8).
@@ -56,6 +58,7 @@ click **Connect FTP** in the bottom bar, add a connection profile, and hit
 | Property                                    | Default       | Description                                          |
 |---------------------------------------------|---------------|------------------------------------------------------|
 | `app.root-dir`                              | `${user.dir}` | Local directory all local-side ops are sandboxed to. |
+| `app.settings-file`                         | `${user.home}/.browseftp/settings.json` | Where user settings (theme, FTP connections, last paths) are stored. |
 | `server.port`                               | `8080`        | HTTP port.                                           |
 | `spring.servlet.multipart.max-file-size`    | `512MB`       | Max upload size (HTTP form uploads).                 |
 | `spring.servlet.multipart.max-request-size` | `512MB`       | Max upload request size.                             |
@@ -108,6 +111,16 @@ stateless (no session per user).
 | POST   | `/api/jobs/{id}/cancel`                    | Request cancellation                 |
 | DELETE | `/api/jobs/completed`                      | Remove DONE/FAILED/CANCELLED jobs    |
 | DELETE | `/api/jobs/cleanup?olderThanSeconds=600`   | Time-based cleanup                   |
+
+### Settings
+
+User settings are persisted server-side as a single JSON document (see
+`app.settings-file`).
+
+| Method | Path             | Purpose                                  |
+|--------|------------------|------------------------------------------|
+| GET    | `/api/settings`  | Read the stored settings JSON object     |
+| PUT    | `/api/settings`  | Replace the stored settings JSON object  |
 
 ## Project layout
 

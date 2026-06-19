@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { FileItem, FileService, Conflict, OverwritePolicy } from './services/file.service';
 import { FtpService, FtpSettings, FtpConnectionProfile } from './services/ftp.service';
 import { JobsService, JobSummary, JobDetail } from './services/jobs.service';
+import { SettingsService, AppSettings } from './services/settings.service';
 import { PanelComponent, ViewMode, PanelDropEvent } from './components/panel/panel.component';
 type PanelKind = 'local' | 'ftp';
 type SortKey = 'name' | 'date' | 'size';
@@ -47,6 +48,14 @@ export class AppComponent implements OnInit, OnDestroy {
   viewerContent = '';
   /** When set, the viewer shows this image instead of text. */
   viewerImageUrl: string | null = null;
+  /** Relative path of the image currently shown (for prev/next + open-in-tab). */
+  viewerImagePath: string | null = null;
+  /** Blob of the current image, used to open it in a new tab (FTP case). */
+  private viewerImageBlob: Blob | null = null;
+  /** Panel the viewer is browsing (so prev/next fetch from the same source). */
+  private viewerPanel: PanelState | null = null;
+  /** Image paths in the viewer panel's directory, in displayed order. */
+  viewerImageList: string[] = [];
   // FTP connection manager state
   showFtp = false;            // connection manager modal
   showFtpEditor = false;      // add/edit form modal
@@ -79,27 +88,82 @@ export class AppComponent implements OnInit, OnDestroy {
     { title: 'Right', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local', sortKey: 'name', sortAsc: true }
   ];
   activeIndex = 0;
-  constructor(private fileService: FileService, private ftpService: FtpService, private jobsService: JobsService) {}
+  /** Settings persisted server-side (theme, FTP connections, last paths). */
+  private settings: AppSettings = {};
+  /** Debounce handle for persisting settings to the server. */
+  private saveSettingsHandle: any = null;
+  constructor(private fileService: FileService, private ftpService: FtpService,
+              private jobsService: JobsService, private settingsService: SettingsService) {}
   ngOnInit(): void {
-    this.loadTheme();
+    // Load persisted settings from the server first, then start the UI. If the
+    // server has none yet (or the request fails), migrate any values still in
+    // localStorage so existing users keep their settings, then persist them.
+    this.settingsService.load().subscribe({
+      next: s => {
+        const loaded = s && Object.keys(s).length ? s : this.migrateFromLocalStorage();
+        this.startup(loaded);
+        if (!s || !Object.keys(s).length) {
+          this.persistSettings();
+        }
+      },
+      error: () => {
+        this.startup(this.migrateFromLocalStorage());
+        this.persistSettings();
+      }
+    });
+  }
+
+  /** Applies loaded settings and kicks off the initial data loads. */
+  private startup(s: AppSettings): void {
+    this.settings = s || {};
+    this.applyThemeFromSettings();
     this.loadConnections();
     this.fileService.root().subscribe({
       next: r => (this.root = r.root),
       error: e => this.handleError(e)
     });
-    this.load(0);
-    this.load(1);
+    const lastPaths = this.loadLastPaths();
+    this.load(0, lastPaths[0] ?? undefined, lastPaths[0] !== null);
+    this.load(1, lastPaths[1] ?? undefined, lastPaths[1] !== null);
     this.refreshJobs();
     this.pollHandle = setInterval(() => this.refreshJobs(), 1000);
+  }
+
+  /** Builds a settings object from any values still in localStorage (migration). */
+  private migrateFromLocalStorage(): AppSettings {
+    const s: AppSettings = {};
+    const theme = localStorage.getItem('theme');
+    if (theme === 'dark' || theme === 'light') {
+      s.theme = theme;
+    }
+    const conns = localStorage.getItem('ftpConnections');
+    if (conns) {
+      try { s.ftpConnections = JSON.parse(conns); } catch { /* ignore */ }
+    }
+    const lp = localStorage.getItem('lastPaths');
+    if (lp) {
+      try { s.lastPaths = JSON.parse(lp); } catch { /* ignore */ }
+    }
+    return s;
+  }
+
+  /** Debounced persist of the whole settings object to the server. */
+  private persistSettings(): void {
+    if (this.saveSettingsHandle) {
+      clearTimeout(this.saveSettingsHandle);
+    }
+    this.saveSettingsHandle = setTimeout(() => {
+      this.settingsService.save(this.settings).subscribe({ next: () => {}, error: () => {} });
+    }, 300);
   }
 
   // ---- Theme (light / dark) ----
   /** Currently active theme; applied via the Bootstrap 5.3 [data-bs-theme] attribute. */
   theme: 'light' | 'dark' = 'light';
 
-  /** Reads the saved theme from localStorage (or system preference) and applies it. */
-  private loadTheme(): void {
-    const saved = localStorage.getItem('theme');
+  /** Applies the theme from loaded settings (or the OS preference). */
+  private applyThemeFromSettings(): void {
+    const saved = this.settings.theme;
     if (saved === 'dark' || saved === 'light') {
       this.theme = saved;
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -111,7 +175,8 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Persists and applies the current theme on the <html> element. */
   private applyTheme(): void {
     document.documentElement.setAttribute('data-bs-theme', this.theme);
-    localStorage.setItem('theme', this.theme);
+    this.settings.theme = this.theme;
+    this.persistSettings();
   }
 
   /** Switches between light and dark and persists the choice. */
@@ -122,6 +187,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.pollHandle) clearInterval(this.pollHandle);
+    if (this.saveSettingsHandle) {
+      clearTimeout(this.saveSettingsHandle);
+      // Flush any pending settings change immediately on teardown.
+      this.settingsService.save(this.settings).subscribe({ next: () => {}, error: () => {} });
+    }
   }
 
   // ---- Operations panel ----
@@ -338,7 +408,21 @@ export class AppComponent implements OnInit, OnDestroy {
   // F6 Rename, F7 New folder, F8 Delete.
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (this.showViewer || this.showSettings || this.showFtp || this.showFtpEditor || this.showConflict) {
+    // Viewer modal: Esc closes it; arrows step through images.
+    if (this.showViewer) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeViewer();
+      } else if (event.key === 'ArrowLeft' && this.hasPrevImage) {
+        event.preventDefault();
+        this.prevImage();
+      } else if (event.key === 'ArrowRight' && this.hasNextImage) {
+        event.preventDefault();
+        this.nextImage();
+      }
+      return;
+    }
+    if (this.showSettings || this.showFtp || this.showFtpEditor || this.showConflict) {
       return;
     }
     const target = event.target as HTMLElement;
@@ -437,7 +521,7 @@ export class AppComponent implements OnInit, OnDestroy {
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   }
-  load(index: number, path?: string): void {
+  load(index: number, path?: string, isRestore = false): void {
     const panel = this.panels[index];
     if (path !== undefined) {
       panel.path = path;
@@ -456,9 +540,16 @@ export class AppComponent implements OnInit, OnDestroy {
         panel.selected.clear();
         panel.cursor = -1;
         panel.loading = false;
+        this.saveLastPaths();
       },
       error: e => {
         panel.loading = false;
+        // A restored directory may no longer exist — fall back to the root
+        // instead of leaving the panel broken/empty.
+        if (isRestore && panel.kind === 'local' && panel.path) {
+          this.load(index, '');
+          return;
+        }
         this.handleError(e);
       }
     });
@@ -601,29 +692,25 @@ export class AppComponent implements OnInit, OnDestroy {
       this.error = 'Cannot view a directory.';
       return;
     }
+    const panel = this.active;
+    this.viewerPanel = panel;
+    this.viewerName = paths[0].split('/').pop() ?? paths[0];
+    if (this.isImageFile(this.viewerName)) {
+      // Collect every image in this directory (in displayed order) so Prev/Next
+      // can step through them.
+      this.viewerImageList = panel.items
+        .filter(i => !i.directory && this.isImageFile(i.name))
+        .map(i => i.path);
+      this.showImage(paths[0]);
+      return;
+    }
+    // Text file.
+    this.viewerImageList = [];
+    this.viewerImagePath = null;
     this.showViewer = true;
     this.viewerLoading = true;
     this.viewerContent = '';
     this.releaseViewerImage();
-    this.viewerName = paths[0].split('/').pop() ?? paths[0];
-    const panel = this.active;
-    if (this.isImageFile(this.viewerName)) {
-      const blob$: Observable<Blob> = panel.kind === 'ftp' && panel.ftp
-        ? this.ftpService.raw(panel.ftp, paths[0])
-        : this.fileService.raw(paths[0]);
-      blob$.subscribe({
-        next: blob => {
-          this.viewerImageUrl = URL.createObjectURL(blob);
-          this.viewerLoading = false;
-        },
-        error: e => {
-          this.showViewer = false;
-          this.viewerLoading = false;
-          this.handleError(e);
-        }
-      });
-      return;
-    }
     const request: Observable<{ name: string; content: string }> = panel.kind === 'ftp' && panel.ftp
       ? this.ftpService.content(panel.ftp, paths[0])
       : this.fileService.content(paths[0]);
@@ -640,18 +727,95 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  /** Loads and shows the given image path in the viewer (used by view + prev/next). */
+  private showImage(path: string): void {
+    const panel = this.viewerPanel ?? this.active;
+    this.showViewer = true;
+    this.viewerLoading = true;
+    this.viewerContent = '';
+    this.releaseViewerImage();
+    this.viewerImagePath = path;
+    this.viewerName = path.split('/').pop() ?? path;
+    const blob$: Observable<Blob> = panel.kind === 'ftp' && panel.ftp
+      ? this.ftpService.raw(panel.ftp, path)
+      : this.fileService.raw(path);
+    blob$.subscribe({
+      next: blob => {
+        this.viewerImageBlob = blob;
+        this.viewerImageUrl = URL.createObjectURL(blob);
+        this.viewerLoading = false;
+      },
+      error: e => {
+        this.showViewer = false;
+        this.viewerLoading = false;
+        this.handleError(e);
+      }
+    });
+  }
+
+  /** Index of the current image within the directory's image list (-1 if none). */
+  get viewerImageIndex(): number {
+    return this.viewerImagePath ? this.viewerImageList.indexOf(this.viewerImagePath) : -1;
+  }
+  get hasPrevImage(): boolean {
+    return this.viewerImageIndex > 0;
+  }
+  get hasNextImage(): boolean {
+    const i = this.viewerImageIndex;
+    return i >= 0 && i < this.viewerImageList.length - 1;
+  }
+  prevImage(): void {
+    const i = this.viewerImageIndex;
+    if (i > 0) {
+      this.showImage(this.viewerImageList[i - 1]);
+    }
+  }
+  nextImage(): void {
+    const i = this.viewerImageIndex;
+    if (i >= 0 && i < this.viewerImageList.length - 1) {
+      this.showImage(this.viewerImageList[i + 1]);
+    }
+  }
+
+  /** Opens the current image at its original size in a new browser tab. */
+  openImageInNewTab(): void {
+    if (!this.viewerImagePath) {
+      return;
+    }
+    const panel = this.viewerPanel ?? this.active;
+    if (panel.kind === 'ftp') {
+      // FTP raw is a POST endpoint, so open the already-fetched blob. A fresh
+      // object URL is used so closing the viewer (which revokes the current one)
+      // doesn't break the opened tab.
+      const blob = this.viewerImageBlob;
+      if (blob) {
+        window.open(URL.createObjectURL(blob), '_blank');
+      } else if (this.viewerImageUrl) {
+        window.open(this.viewerImageUrl, '_blank');
+      }
+    } else {
+      // Local files have a stable GET URL that serves the image inline.
+      window.open('/api/files/raw?path=' + encodeURIComponent(this.viewerImagePath), '_blank');
+    }
+  }
+
   private isImageFile(name: string): boolean {
     return /\.(png|jpe?g|gif|bmp|webp|svg|ico)$/i.test(name);
   }
   closeViewer(): void {
     this.releaseViewerImage();
     this.showViewer = false;
+    this.viewerImagePath = null;
+    this.viewerImageList = [];
+    this.viewerPanel = null;
   }
   private releaseViewerImage(): void {
     if (this.viewerImageUrl) {
       URL.revokeObjectURL(this.viewerImageUrl);
       this.viewerImageUrl = null;
     }
+    this.viewerImageBlob = null;
   }
   copy(): void {
     const paths = this.selectedPaths();
@@ -950,16 +1114,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showFtp = true;
   }
   private loadConnections(): void {
-    let list: FtpConnectionProfile[] = [];
-    const saved = localStorage.getItem('ftpConnections');
-    if (saved) {
-      try {
-        list = JSON.parse(saved);
-      } catch {
-        list = [];
-      }
-    }
+    let list: FtpConnectionProfile[] = this.settings.ftpConnections ?? [];
     if (!list.length) {
+      // Migrate a very old single-connection localStorage entry if present.
       const legacy = localStorage.getItem('ftpSettings');
       if (legacy) {
         try {
@@ -969,7 +1126,6 @@ export class AppComponent implements OnInit, OnDestroy {
             host: o.host || '', port: o.port || 21, user: o.user || '',
             password: o.password || '', passive: o.passive !== false
           }];
-          localStorage.setItem('ftpConnections', JSON.stringify(list));
         } catch {
           // ignore malformed legacy settings
         }
@@ -978,7 +1134,33 @@ export class AppComponent implements OnInit, OnDestroy {
     this.ftpConnections = list;
   }
   private saveConnections(): void {
-    localStorage.setItem('ftpConnections', JSON.stringify(this.ftpConnections));
+    this.settings.ftpConnections = this.ftpConnections;
+    this.persistSettings();
+  }
+
+  // ---- Last-opened directory persistence ----
+  /**
+   * Persists each panel's current local directory so it can be restored on the
+   * next app open. FTP connections are intentionally NOT persisted (no
+   * credentials are stored); an FTP panel is saved as null so it falls back to
+   * the local root next time.
+   */
+  private saveLastPaths(): void {
+    this.settings.lastPaths = this.panels.map(p => (p.kind === 'local' ? (p.path ?? '') : null));
+    this.persistSettings();
+  }
+
+  /**
+   * Reads the persisted per-panel local directories. Returns a 2-element array
+   * where each entry is the saved path ('' = root) or null when there is no
+   * usable saved local path for that panel.
+   */
+  private loadLastPaths(): (string | null)[] {
+    const arr = this.settings.lastPaths;
+    if (!Array.isArray(arr)) {
+      return [null, null];
+    }
+    return [0, 1].map(i => (typeof arr[i] === 'string' ? arr[i] as string : null));
   }
   selectConn(i: number): void {
     this.ftpSelected = i;
@@ -1064,6 +1246,9 @@ export class AppComponent implements OnInit, OnDestroy {
         this.sortPanelItems(panel);
         panel.selected.clear();
         panel.cursor = -1;
+        // FTP connections aren't persisted; record this panel as non-local so
+        // it opens at the local root next time instead of a stale path.
+        this.saveLastPaths();
         this.activeIndex = index;
         // On success, close the connection manager.
         this.showFtp = false;

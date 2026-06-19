@@ -18,7 +18,8 @@ WorkingDirectory=/opt/ftpclient
 # e.g. /usr/lib/jvm/temurin-25-jdk/bin/java
 ExecStart=/usr/bin/java -jar /opt/ftpclient/ftpclient.jar \
     --server.port=8899 \
-    --app.root-dir=/srv/ftpfiles
+    --app.root-dir=/srv/ftpfiles \
+    --app.settings-file=/opt/ftpclient/settings.json
 
 # Restart on failure.
 Restart=on-failure
@@ -34,7 +35,7 @@ PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
 # The managed directory must remain writable for file operations:
-ReadWritePaths=/srv/ftpfiles
+ReadWritePaths=/srv/ftpfiles /opt/ftpclient
 
 [Install]
 WantedBy=multi-user.target

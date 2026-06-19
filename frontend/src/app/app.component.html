@@ -245,7 +245,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title text-truncate">
-          <i class="bi bi-file-earmark-text me-2"></i>{{ viewerName }}
+          <i class="bi me-2" [class.bi-image]="viewerImageUrl" [class.bi-file-earmark-text]="!viewerImageUrl"></i>{{ viewerName }}
         </h5>
         <button type="button" class="btn-close" (click)="closeViewer()"></button>
       </div>
@@ -254,11 +254,25 @@
           <span class="spinner-border spinner-border-sm"></span> Loading...
         </div>
         <div *ngIf="!viewerLoading && viewerImageUrl" class="viewer-image-wrap">
-          <img [src]="viewerImageUrl" [alt]="viewerName" class="viewer-image">
+          <img [src]="viewerImageUrl" [alt]="viewerName" class="viewer-image"
+               style="cursor: zoom-in;"
+               title="Open original size in a new tab"
+               (click)="openImageInNewTab()">
         </div>
         <pre *ngIf="!viewerLoading && !viewerImageUrl" class="viewer-content">{{ viewerContent }}</pre>
       </div>
       <div class="modal-footer">
+        <ng-container *ngIf="viewerImageUrl && viewerImageList.length > 1">
+          <span class="small text-muted me-auto">{{ viewerImageIndex + 1 }} / {{ viewerImageList.length }}</span>
+          <button type="button" class="btn btn-outline-secondary" [disabled]="!hasPrevImage"
+                  (click)="prevImage()" title="Previous image">
+            <i class="bi bi-chevron-left me-1"></i>Prev
+          </button>
+          <button type="button" class="btn btn-outline-secondary" [disabled]="!hasNextImage"
+                  (click)="nextImage()" title="Next image">
+            Next<i class="bi bi-chevron-right ms-1"></i>
+          </button>
+        </ng-container>
         <button type="button" class="btn btn-primary" (click)="closeViewer()">Close</button>
       </div>
     </div>

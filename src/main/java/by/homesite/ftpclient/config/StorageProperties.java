@@ -18,12 +18,28 @@ public class StorageProperties {
      */
     private String rootDir = System.getProperty("user.dir");
 
+    /**
+     * File where user settings (theme, saved FTP connections, last-opened
+     * directories) are persisted. Defaults to {@code ~/.browseftp/settings.json}.
+     * Override with {@code --app.settings-file=/path/to/settings.json}.
+     */
+    private String settingsFile =
+            System.getProperty("user.home") + "/.browseftp/settings.json";
+
     public String getRootDir() {
         return rootDir;
     }
 
     public void setRootDir(String rootDir) {
         this.rootDir = rootDir;
+    }
+
+    public String getSettingsFile() {
+        return settingsFile;
+    }
+
+    public void setSettingsFile(String settingsFile) {
+        this.settingsFile = settingsFile;
     }
 }
 
