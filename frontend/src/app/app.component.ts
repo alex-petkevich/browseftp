@@ -742,6 +742,11 @@ export class AppComponent implements OnInit, OnDestroy {
       : this.fileService.raw(path);
     blob$.subscribe({
       next: blob => {
+        if (this.isHeicFile(this.viewerName)) {
+          // Browsers can't render HEIC natively — convert to JPEG client-side.
+          this.convertHeic(blob);
+          return;
+        }
         this.viewerImageBlob = blob;
         this.viewerImageUrl = URL.createObjectURL(blob);
         this.viewerLoading = false;
@@ -751,6 +756,23 @@ export class AppComponent implements OnInit, OnDestroy {
         this.viewerLoading = false;
         this.handleError(e);
       }
+    });
+  }
+
+  /** Converts a HEIC/HEIF blob to a displayable JPEG (lazy-loads heic2any). */
+  private convertHeic(blob: Blob): void {
+    import('heic2any').then(mod => {
+      const heic2any = (mod as any).default ?? mod;
+      return heic2any({ blob, toType: 'image/jpeg', quality: 0.9 });
+    }).then((out: Blob | Blob[]) => {
+      const jpeg = Array.isArray(out) ? out[0] : out;
+      this.viewerImageBlob = jpeg;
+      this.viewerImageUrl = URL.createObjectURL(jpeg);
+      this.viewerLoading = false;
+    }).catch(err => {
+      this.viewerLoading = false;
+      this.showViewer = false;
+      this.error = 'Cannot display HEIC image: ' + (err?.message ?? err);
     });
   }
 
@@ -784,10 +806,8 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
     const panel = this.viewerPanel ?? this.active;
-    if (panel.kind === 'ftp') {
-      // FTP raw is a POST endpoint, so open the already-fetched blob. A fresh
-      // object URL is used so closing the viewer (which revokes the current one)
-      // doesn't break the opened tab.
+    // HEIC has no browser-renderable original, so open the converted JPEG blob.
+    if (this.isHeicFile(this.viewerName) || panel.kind === 'ftp') {
       const blob = this.viewerImageBlob;
       if (blob) {
         window.open(URL.createObjectURL(blob), '_blank');
@@ -801,7 +821,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private isImageFile(name: string): boolean {
-    return /\.(png|jpe?g|gif|bmp|webp|svg|ico)$/i.test(name);
+    return /\.(png|jpe?g|gif|bmp|webp|svg|ico|heic|heif)$/i.test(name);
+  }
+
+  /** True for HEIC/HEIF images, which need client-side conversion to display. */
+  private isHeicFile(name: string): boolean {
+    return /\.(heic|heif)$/i.test(name);
   }
 
   /**

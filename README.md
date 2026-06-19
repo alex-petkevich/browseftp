@@ -29,7 +29,9 @@ runnable `jar`. No database, no external services — just the jar and a JRE.
   - per-job protocol log that auto-scrolls,
   - **Stop** button to interrupt the current operation,
   - **Clear completed** to clean up the job list.
-- **Text and image preview** for files in either panel (F3).
+- **Text and image preview** for files in either panel (F3), with Prev/Next
+  navigation, click-to-open original in a new tab, and **HEIC/HEIF** support
+  (converted to JPEG in the browser for display).
 - **Sandboxed local root**: the local side cannot escape the configured root
   directory — path-traversal is blocked server-side.
 - **Single jar** distribution; the Angular UI is served as static resources by

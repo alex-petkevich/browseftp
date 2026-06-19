@@ -430,6 +430,8 @@ public class FtpService {
         if (lower.endsWith(".webp")) return "image/webp";
         if (lower.endsWith(".svg")) return "image/svg+xml";
         if (lower.endsWith(".ico")) return "image/x-icon";
+        if (lower.endsWith(".heic")) return "image/heic";
+        if (lower.endsWith(".heif")) return "image/heif";
         return "application/octet-stream";
     }
     /** Uploads local files/folders into a remote directory (local -> ftp). */
