@@ -1,5 +1,34 @@
 # Release Notes
 
+## v1.0.2 — 2026-10-15
+
+Bug-fix release: settings (saved FTP connections, theme, last-opened folders)
+were not persisted when running as a systemd service on Linux.
+
+### Fixes
+
+- **Settings are now reliably saved on Linux servers.** The backend verifies
+  at startup that the settings file location is writable and, if not, falls
+  back to `<working dir>/.browseftp/settings.json` (then
+  `<root-dir>/.browseftp/settings.json`), logging which file is used.
+- **Save/load errors are no longer silent**: the UI shows
+  "Cannot save settings: …" / "Cannot load settings: …" with the reason.
+- A failed settings load no longer overwrites the stored settings with
+  empty values.
+- A pending settings change is flushed when the page is closed or reloaded.
+- `GET /api/settings` is sent with `Cache-Control: no-store`, so the browser
+  or a proxy can't serve a stale copy.
+
+### Deployment
+
+- `deploy/ftpclient.service`: `ExecStart` is now a single line and the file
+  uses LF line endings. A broken `\` continuation (or CRLF endings) caused
+  systemd to drop `--app.settings-file` ("Unknown key '--app.settings-file'").
+  **Update your installed unit** and run `sudo systemctl daemon-reload`.
+- `.gitattributes` forces LF for `*.service` and `*.sh` files.
+- `DEPLOY.md`: new troubleshooting section for settings not being remembered.
+
+
 ## v1.0.0-beta — 2026-06-19
 
 A large feature update focused on the image viewer, downloads, sorting,
