@@ -1,6 +1,7 @@
 package by.homesite.ftpclient.web;
 
 import by.homesite.ftpclient.service.SettingsService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,7 @@ public class SettingsController {
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<byte[]> get() {
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(settings.load());
     }

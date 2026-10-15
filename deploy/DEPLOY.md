@@ -99,6 +99,18 @@ sudo systemctl start ftpclient
 
 ## 8. Notes
 
+- **Settings not remembered (FTP list, theme, last folders)**: the settings file
+  must be writable by the service user. Check the log line
+  `User settings file: ...` (`journalctl -u ftpclient | grep -i settings`).
+  If it reports *NOT writable*, make sure:
+  - the unit passes `--app.settings-file=/opt/ftpclient/settings.json`
+    (the `ftpclient` user has no home dir and `ProtectHome=true` hides `/home`);
+  - `/opt/ftpclient` is owned by `ftpclient` (`sudo chown -R ftpclient:ftpclient /opt/ftpclient`);
+  - the directory is listed in `ReadWritePaths=`.
+  When the configured location isn't writable, the app automatically falls back
+  to `<working dir>/.browseftp/settings.json` (or `<root-dir>/.browseftp/settings.json`)
+  and logs a warning.
+
 - **Port < 1024**: if you want to serve on port 80, either keep a higher port
   and put nginx/Caddy in front, or grant the capability:
   `AmbientCapabilities=CAP_NET_BIND_SERVICE` in the `[Service]` section.

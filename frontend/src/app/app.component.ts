@@ -94,6 +94,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private settings: AppSettings = {};
   /** Debounce handle for persisting settings to the server. */
   private saveSettingsHandle: any = null;
+  /** False if loading settings failed — then we never save, to avoid clobbering server data. */
+  private settingsLoadedFromServer = false;
   constructor(private fileService: FileService, private ftpService: FtpService,
               private jobsService: JobsService, private settingsService: SettingsService) {}
   ngOnInit(): void {
@@ -102,15 +104,18 @@ export class AppComponent implements OnInit, OnDestroy {
     // localStorage so existing users keep their settings, then persist them.
     this.settingsService.load().subscribe({
       next: s => {
+        this.settingsLoadedFromServer = true;
         const loaded = s && Object.keys(s).length ? s : this.migrateFromLocalStorage();
         this.startup(loaded);
         if (!s || !Object.keys(s).length) {
           this.persistSettings();
         }
       },
-      error: () => {
+      error: e => {
+        // Don't persist here: a transient load failure must not overwrite the
+        // settings stored on the server with an empty/partial object.
         this.startup(this.migrateFromLocalStorage());
-        this.persistSettings();
+        this.error = 'Cannot load settings: ' + (e?.error?.error ?? e?.message ?? 'unknown error');
       }
     });
   }
@@ -155,11 +160,18 @@ export class AppComponent implements OnInit, OnDestroy {
 
   /** Debounced persist of the whole settings object to the server. */
   private persistSettings(): void {
+    if (!this.settingsLoadedFromServer) {
+      return;
+    }
     if (this.saveSettingsHandle) {
       clearTimeout(this.saveSettingsHandle);
     }
     this.saveSettingsHandle = setTimeout(() => {
-      this.settingsService.save(this.settings).subscribe({ next: () => {}, error: () => {} });
+      this.saveSettingsHandle = null;
+      this.settingsService.save(this.settings).subscribe({
+        next: () => {},
+        error: e => (this.error = 'Cannot save settings: ' + (e?.error?.error ?? e?.message ?? 'unknown error'))
+      });
     }, 300);
   }
 
@@ -193,10 +205,28 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.pollHandle) clearInterval(this.pollHandle);
-    if (this.saveSettingsHandle) {
-      clearTimeout(this.saveSettingsHandle);
-      // Flush any pending settings change immediately on teardown.
-      this.settingsService.save(this.settings).subscribe({ next: () => {}, error: () => {} });
+    this.flushSettingsOnUnload();
+  }
+
+  /** Flushes a pending (debounced) settings save when the page is closed/reloaded. */
+  @HostListener('window:pagehide')
+  @HostListener('window:beforeunload')
+  flushSettingsOnUnload(): void {
+    if (!this.saveSettingsHandle) {
+      return;
+    }
+    clearTimeout(this.saveSettingsHandle);
+    this.saveSettingsHandle = null;
+    try {
+      // keepalive lets the request complete even while the page is unloading.
+      fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.settings),
+        keepalive: true
+      }).catch(() => {});
+    } catch {
+      // ignore
     }
   }
 
