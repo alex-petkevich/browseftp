@@ -480,3 +480,32 @@ body {
   background: var(--bs-danger);
 }
 
+/* File-type icon colours (see components/panel/file-icons.ts). */
+.ft-image   { color: #2f9e44; }
+.ft-video   { color: #7048e8; }
+.ft-audio   { color: #d6336c; }
+.ft-archive { color: #a0522d; }
+.ft-pdf     { color: #e03131; }
+.ft-word    { color: #2b579a; }
+.ft-excel   { color: #217346; }
+.ft-ppt     { color: #d24726; }
+.ft-code    { color: #1098ad; }
+.ft-text    { color: #5c7cfa; }
+.ft-font    { color: #868e96; }
+.ft-binary  { color: #495057; }
+.ft-key     { color: #e67700; }
+.ft-diff    { color: #0ca678; }
+[data-bs-theme="dark"] .ft-image   { color: #69db7c; }
+[data-bs-theme="dark"] .ft-video   { color: #9775fa; }
+[data-bs-theme="dark"] .ft-audio   { color: #f783ac; }
+[data-bs-theme="dark"] .ft-archive { color: #d9a066; }
+[data-bs-theme="dark"] .ft-pdf     { color: #ff6b6b; }
+[data-bs-theme="dark"] .ft-word    { color: #74a7f5; }
+[data-bs-theme="dark"] .ft-excel   { color: #51cf66; }
+[data-bs-theme="dark"] .ft-ppt     { color: #ff8a5c; }
+[data-bs-theme="dark"] .ft-code    { color: #3bc9db; }
+[data-bs-theme="dark"] .ft-text    { color: #91a7ff; }
+[data-bs-theme="dark"] .ft-font    { color: #adb5bd; }
+[data-bs-theme="dark"] .ft-binary  { color: #ced4da; }
+[data-bs-theme="dark"] .ft-key     { color: #ffc078; }
+[data-bs-theme="dark"] .ft-diff    { color: #38d9a9; }

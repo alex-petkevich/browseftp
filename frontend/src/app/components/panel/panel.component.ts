@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FileItem, DiskSpace } from '../../services/file.service';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { fileIconClass } from './file-icons';
 
 export type ViewMode = 'brief' | 'full' | 'icons';
 
@@ -263,7 +264,7 @@ export class PanelComponent {
   }
 
   iconClass(item: FileItem): string {
-    return item.directory ? 'bi-folder-fill dir-icon' : 'bi-file-earmark file-icon';
+    return item.directory ? 'bi-folder-fill dir-icon' : fileIconClass(item.name, this.viewMode === 'icons');
   }
 }
 
