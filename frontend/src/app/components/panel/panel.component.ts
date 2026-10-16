@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FileItem } from '../../services/file.service';
 
@@ -50,6 +50,43 @@ export class PanelComponent {
   @Output() openSettings = new EventEmitter<void>();
   @Output() dragStartItem = new EventEmitter<FileItem>();
   @Output() itemDrop = new EventEmitter<PanelDropEvent>();
+  /** Emitted with the raw text when the user submits an edited path. */
+  @Output() pathSubmit = new EventEmitter<string>();
+
+  @ViewChild('pathInput') pathInput?: ElementRef<HTMLInputElement>;
+
+  /** True while the path bar is in edit mode. */
+  editingPath = false;
+
+  /** Path as shown in the path bar (always with a leading slash). */
+  get displayPath(): string {
+    return this.path.startsWith('/') ? this.path : '/' + this.path;
+  }
+
+  startEditPath(): void {
+    this.activate.emit();
+    this.editingPath = true;
+    // Focus and select the text once the input has been rendered.
+    setTimeout(() => {
+      const el = this.pathInput?.nativeElement;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
+  }
+
+  commitEditPath(value: string): void {
+    this.editingPath = false;
+    const v = (value ?? '').trim();
+    if (v && v !== this.displayPath) {
+      this.pathSubmit.emit(v);
+    }
+  }
+
+  cancelEditPath(): void {
+    this.editingPath = false;
+  }
 
   /** True while a drag is hovering over the panel background (visual feedback). */
   panelDragOver = false;

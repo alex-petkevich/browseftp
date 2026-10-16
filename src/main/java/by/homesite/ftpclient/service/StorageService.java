@@ -63,6 +63,12 @@ public class StorageService {
         String clean = relativePath == null ? "" : relativePath.trim();
         // normalise separators and strip leading slashes so it is always relative
         clean = clean.replace('\\', '/');
+        // Accept an absolute path that points inside the root (e.g. typed by the
+        // user as "/srv/ftpfiles/photos") by converting it to a relative one.
+        Path absolute = toAbsoluteOrNull(clean);
+        if (absolute != null && absolute.startsWith(root)) {
+            clean = root.relativize(absolute).toString().replace('\\', '/');
+        }
         while (clean.startsWith("/")) {
             clean = clean.substring(1);
         }
@@ -71,6 +77,19 @@ public class StorageService {
             throw new StorageException("Access outside of the managed directory is not allowed: " + relativePath);
         }
         return resolved;
+    }
+
+    /** Parses {@code p} as an absolute, normalized path; null if it isn't absolute or is invalid. */
+    private static Path toAbsoluteOrNull(String p) {
+        if (p.isEmpty()) {
+            return null;
+        }
+        try {
+            Path candidate = Paths.get(p);
+            return candidate.isAbsolute() ? candidate.normalize() : null;
+        } catch (java.nio.file.InvalidPathException e) {
+            return null;
+        }
     }
 
     /** Path relative to root expressed with forward slashes. */

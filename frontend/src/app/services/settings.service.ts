@@ -13,6 +13,17 @@ export interface AppSettings {
   ftpConnections?: FtpConnectionProfile[];
   /** Per-panel last-opened local directory ('' = root, null = was FTP/none). */
   lastPaths?: (string | null)[];
+  /** Width of the left panel in percent (15..85). */
+  leftWidth?: number;
+  /** Per-panel view mode and sort order. */
+  panelPrefs?: PanelPrefs[];
+}
+
+/** Per-panel display preferences. */
+export interface PanelPrefs {
+  viewMode?: 'brief' | 'full' | 'icons';
+  sortKey?: 'name' | 'date' | 'size';
+  sortAsc?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })

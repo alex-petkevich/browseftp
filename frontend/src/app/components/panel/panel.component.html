@@ -71,8 +71,16 @@
       <i class="bi bi-gear"></i>
     </button>
   </div>
-  <!-- Current path -->
-  <div class="panel-path">{{ path.startsWith('/') ? path : '/' + path }}</div>
+  <!-- Current path (double-click to edit, Enter to go, Esc to cancel) -->
+  <div class="panel-path" *ngIf="!editingPath" title="Double-click to edit the path"
+       (dblclick)="startEditPath(); $event.stopPropagation()">{{ displayPath }}</div>
+  <div class="panel-path" *ngIf="editingPath" (click)="$event.stopPropagation()">
+    <input #pathInput type="text" class="form-control form-control-sm font-monospace py-0"
+           [value]="displayPath" spellcheck="false" autocomplete="off"
+           (keydown.enter)="commitEditPath(pathInput.value); $event.preventDefault()"
+           (keydown.escape)="cancelEditPath(); $event.preventDefault()"
+           (blur)="cancelEditPath()">
+  </div>
   <!-- Listing -->
   <div class="file-list">
     <div *ngIf="loading" class="text-center text-muted p-3">

@@ -48,6 +48,7 @@
       (deselectAll)="deselectAll(0)"
       (dragStartItem)="onDragStartFromPanel(0, $event)"
       (itemDrop)="onDropToPanel(0, $event)"
+      (pathSubmit)="navigateTo(0, $event)"
       (openSettings)="showSettings = true">
     </app-panel>
 
@@ -81,6 +82,7 @@
       (deselectAll)="deselectAll(1)"
       (dragStartItem)="onDragStartFromPanel(1, $event)"
       (itemDrop)="onDropToPanel(1, $event)"
+      (pathSubmit)="navigateTo(1, $event)"
       (openSettings)="showSettings = true">
     </app-panel>
   </div>

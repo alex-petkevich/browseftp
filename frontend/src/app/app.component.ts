@@ -124,6 +124,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private startup(s: AppSettings): void {
     this.settings = s || {};
     this.applyThemeFromSettings();
+    this.applyLayoutFromSettings();
     this.loadConnections();
     this.fileService.root().subscribe({
       next: r => (this.root = r.root),
@@ -188,6 +189,39 @@ export class AppComponent implements OnInit, OnDestroy {
       this.theme = 'dark';
     }
     this.applyTheme();
+  }
+
+  /** Restores splitter position and per-panel view mode / sort order. */
+  private applyLayoutFromSettings(): void {
+    const w = this.settings.leftWidth;
+    if (typeof w === 'number' && isFinite(w)) {
+      this.leftWidth = Math.max(15, Math.min(85, w));
+    }
+    const prefs = this.settings.panelPrefs;
+    if (!Array.isArray(prefs)) {
+      return;
+    }
+    this.panels.forEach((panel, i) => {
+      const p = prefs[i];
+      if (!p) return;
+      if (p.viewMode === 'brief' || p.viewMode === 'full' || p.viewMode === 'icons') {
+        panel.viewMode = p.viewMode;
+      }
+      if (p.sortKey === 'name' || p.sortKey === 'date' || p.sortKey === 'size') {
+        panel.sortKey = p.sortKey;
+      }
+      if (typeof p.sortAsc === 'boolean') {
+        panel.sortAsc = p.sortAsc;
+      }
+    });
+  }
+
+  /** Stores per-panel view mode / sort order in settings and persists them. */
+  private savePanelPrefs(): void {
+    this.settings.panelPrefs = this.panels.map(p => ({
+      viewMode: p.viewMode, sortKey: p.sortKey, sortAsc: p.sortAsc
+    }));
+    this.persistSettings();
   }
 
   /** Persists and applies the current theme on the <html> element. */
@@ -552,6 +586,8 @@ export class AppComponent implements OnInit, OnDestroy {
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
       document.body.style.userSelect = '';
+      this.settings.leftWidth = Math.round(this.leftWidth * 10) / 10;
+      this.persistSettings();
     };
     document.body.style.userSelect = 'none';
     document.addEventListener('mousemove', move);
@@ -559,6 +595,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   load(index: number, path?: string, isRestore = false): void {
     const panel = this.panels[index];
+    const previousPath = panel.path;
     if (path !== undefined) {
       panel.path = path;
     }
@@ -586,9 +623,34 @@ export class AppComponent implements OnInit, OnDestroy {
           this.load(index, '');
           return;
         }
+        // Keep showing the directory we were in, not the one that failed.
+        panel.path = previousPath;
         this.handleError(e);
       }
     });
+  }
+
+  /**
+   * Navigates a panel to a path typed into its path bar. For local panels the
+   * path is relative to app.root-dir (a leading "/" means the root); an
+   * absolute path inside the root is accepted too. The server rejects anything
+   * outside the root, in which case the panel stays where it was.
+   */
+  navigateTo(index: number, input: string): void {
+    let p = (input ?? '').trim().replace(/\\/g, '/');
+    if (this.panels[index].kind === 'local') {
+      // Collapse duplicate slashes and drop a trailing one; '' = root.
+      p = p.replace(/\/{2,}/g, '/');
+      if (p.length > 1 && p.endsWith('/')) {
+        p = p.slice(0, -1);
+      }
+      if (p === '/') {
+        p = '';
+      }
+    } else if (!p) {
+      p = '/';
+    }
+    this.load(index, p);
   }
   openDir(index: number, item: FileItem): void {
     this.load(index, item.path);
@@ -629,6 +691,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   setViewMode(index: number, mode: ViewMode): void {
     this.panels[index].viewMode = mode;
+    this.savePanelPrefs();
   }
 
   /**
@@ -647,6 +710,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const cursorPath = panel.cursor >= 0 ? panel.items[panel.cursor]?.path : null;
     this.sortPanelItems(panel);
     panel.cursor = cursorPath ? panel.items.findIndex(i => i.path === cursorPath) : -1;
+    this.savePanelPrefs();
   }
 
   /** Sorts a panel's items in place by its current sort key/direction. */

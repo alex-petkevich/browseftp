@@ -46,8 +46,10 @@ public class FileController {
     @GetMapping("/list")
     public Map<String, Object> list(@RequestParam(defaultValue = "") String path) {
         List<FileItem> items = storage.list(path);
+        // Return the normalized, root-relative path (e.g. "a/../b" -> "b",
+        // "/srv/ftpfiles/b" -> "b") so the UI always shows the canonical location.
         return Map.of(
-                "path", path,
+                "path", storage.relativize(storage.resolve(path)),
                 "items", items
         );
     }
