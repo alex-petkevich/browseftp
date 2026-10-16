@@ -1,5 +1,69 @@
 # Release Notes
 
+## v1.1.0 — 2026-10-16
+
+Feature release: text editor, uploads, keyboard navigation, Markdown preview,
+multi-language UI and many usability improvements.
+
+### New features
+
+- **Text editor (F4 / Edit button)** based on CodeMirror 6: syntax
+  highlighting by extension (JS/TS, JSON, Markdown, HTML, CSS, XML, Python,
+  Java, YAML, SQL), search, dark theme, line/column display, Ctrl+S to save,
+  confirmation before discarding unsaved changes. Opens files up to 2 MB
+  (local and FTP); refuses binary files and warns about non-UTF-8 text.
+  CRLF line endings and file permissions are preserved; local saves are
+  atomic (temp file + move).
+- **Upload button** in each panel: upload one or more files from your computer
+  into the current folder (local or FTP) with a progress banner; name clashes
+  use the existing replace / rename / skip dialog.
+- **Markdown rendering** in the viewer for `.md` files, with a
+  "Show source / Show rendered" toggle.
+- **Multi-language UI**: English (default), Deutsch, Русский — selectable in
+  Settings and remembered.
+- **Keyboard navigation**: visible cursor (separate from the selection) that
+  can also move onto `[..]`; Left/Right in brief and icons views;
+  PgUp/PgDn/Home/End; Shift+arrows and Shift-click select a range; Space marks
+  an item, Insert marks and moves down. Operations act on the marked items, or
+  on the item under the cursor.
+- **Editable path bar**: double-click the path, type a folder, press Enter
+  (always restricted to `app.root-dir`).
+- **`[..]` parent row** at the top of every listing (outside the root).
+- **File-type icons and colours** by extension (images, video, audio,
+  archives, documents, code, keys, …), using the bundled Bootstrap Icons.
+- **Disk usage** (used / free / total, with a usage bar) in the status bar of
+  local panels.
+- **Layout is remembered**: splitter position, view mode and sort order per
+  panel are stored in the server-side settings.
+
+### Improvements
+
+- Red error banners close on any click.
+- After going up a folder, the cursor lands on the folder you came from; a
+  refresh keeps the cursor on the same item.
+- Uploaded files keep the permissions of the file they replace (or get
+  `rw-r--r--` when new).
+- Removed the unused Mustache dependency (and its startup warning).
+
+### API
+
+- New: `GET /api/files/space`, `POST /api/files/upload`, `POST /api/files/save`,
+  `POST /api/ftp/upload-files`, `POST /api/ftp/save`.
+- `POST /api/ftp/content` now returns `truncated: true` for files over 2 MB.
+- `GET /api/files/list` accepts an absolute path inside the root and returns
+  the normalized path.
+
+### Deployment
+
+- No changes to the systemd unit or configuration are required.
+- Upload limits default to **10 GB** (`spring.servlet.multipart.max-file-size`
+  / `max-request-size`). If nginx or another reverse proxy is in front, raise
+  its body limit too (e.g. `client_max_body_size 10g;`).
+- New frontend dependencies (`codemirror`, `@codemirror/*`, `marked`): build
+  with `./mvnw -Pbuild-frontend clean package` on a machine with npm access.
+
+
+
 ## v1.0.2 — 2026-10-15
 
 Bug-fix release: settings (saved FTP connections, theme, last-opened folders)

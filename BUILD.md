@@ -89,7 +89,7 @@ different name, override it explicitly:
 ## 3. Run the application
 
 ```bash
-java -jar target/ftpclient-1.0.2.jar
+java -jar target/ftpclient-1.1.0.jar
 ```
 
 Useful flags:

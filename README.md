@@ -20,7 +20,7 @@ runnable `jar`. No database, no external services — just the jar and a JRE.
   persisted **server-side** in the user's home directory
   (`~/.browseftp/settings.json`), so they follow you across browsers/devices.
 - **File operations** between panels:
-  - Rename (F2), View / preview (F3), Copy → (F5), Move → (F6),
+  - Rename (F2), View / preview (F3), Edit (F4), Copy → (F5), Move → (F6),
     New folder (F7), Delete (F8).
   - Local↔local, local↔FTP, and FTP↔FTP transfers (the latter streams through
     the server).
@@ -31,7 +31,19 @@ runnable `jar`. No database, no external services — just the jar and a JRE.
   - **Clear completed** to clean up the job list.
 - **Text and image preview** for files in either panel (F3), with Prev/Next
   navigation, click-to-open original in a new tab, and **HEIC/HEIF** support
-  (converted to JPEG in the browser for display).
+  (converted to JPEG in the browser for display). **Markdown** (`.md`) files
+  are rendered, with a toggle to show the source.
+- **Text editor** (F4) based on CodeMirror 6: syntax highlighting, search,
+  Ctrl+S to save, files up to 2 MB, local and FTP.
+- **Upload** files from your computer into the current folder (local or FTP),
+  and **download** selected items (single file or ZIP).
+- **Keyboard-driven**: cursor with arrows / PgUp / PgDn / Home / End (also onto
+  `[..]`), Shift+arrows or Shift-click for ranges, Space / Insert to mark items,
+  Tab to switch panels.
+- **Editable path bar** (double-click), `[..]` parent row, file-type icons, disk
+  usage (used / free / total) in the status bar.
+- **UI languages**: English, Deutsch, Русский; light and dark theme. Layout
+  (splitter, view mode, sort order) is remembered.
 - **Sandboxed local root**: the local side cannot escape the configured root
   directory — path-traversal is blocked server-side.
 - **Single jar** distribution; the Angular UI is served as static resources by
@@ -44,7 +56,7 @@ Requirements: **Java 21+** (the build is configured for Java 25; lower the
 
 ```bash
 # Run
-java -jar target/ftpclient-1.0.2.jar
+java -jar target/ftpclient-1.1.0.jar
 
 # Optional flags:
 #   --app.root-dir=/path/to/managed/folder   (default: current working dir)
@@ -64,8 +76,8 @@ click **Connect FTP** in the bottom bar, add a connection profile, and hit
 | `app.root-dir`                              | `${user.dir}` | Local directory all local-side ops are sandboxed to. |
 | `app.settings-file`                         | `${user.home}/.browseftp/settings.json` | Where user settings (theme, FTP connections, last paths) are stored. |
 | `server.port`                               | `8080`        | HTTP port.                                           |
-| `spring.servlet.multipart.max-file-size`    | `512MB`       | Max upload size (HTTP form uploads).                 |
-| `spring.servlet.multipart.max-request-size` | `512MB`       | Max upload request size.                             |
+| `spring.servlet.multipart.max-file-size`    | `10GB`        | Max upload size (HTTP form uploads).                 |
+| `spring.servlet.multipart.max-request-size` | `10GB`        | Max upload request size.                             |
 
 All standard Spring Boot configuration mechanisms are supported (CLI args,
 `application.properties`, environment variables, etc.).
@@ -82,6 +94,9 @@ All standard Spring Boot configuration mechanisms are supported (CLI args,
 | GET    | `/api/files/raw`      | `?path=`                   | Read raw bytes (image preview) |
 | GET    | `/api/files/download` | `?path=`                   | Download one file (attachment) |
 | GET    | `/api/files/download-zip` | `?paths=&paths=`       | Download files/folders as ZIP  |
+| GET    | `/api/files/space`    | `?path=`                   | Disk total / free / used bytes |
+| POST   | `/api/files/upload`   | multipart `path`, `files[]`, `overwrite` | Upload browser files |
+| POST   | `/api/files/save`     | `{ path, content }`        | Save edited text (≤ 2 MB)      |
 | POST   | `/api/files/mkdir`    | `{ parent, name }`         | Create a directory             |
 | POST   | `/api/files/rename`   | `{ path, newName }`        | Rename a file/dir              |
 | POST   | `/api/files/copy`     | `{ paths[], destination }` | Copy into destination dir      |
@@ -99,7 +114,9 @@ stateless (no session per user).
 |--------|-----------------------|----------------------------------------------------------|
 | POST   | `/api/ftp/connect`    | Connect, list a directory, return the protocol log       |
 | POST   | `/api/ftp/list`       | List a remote directory                                  |
-| POST   | `/api/ftp/content`    | Read remote text file                                    |
+| POST   | `/api/ftp/content`    | Read remote text file (`truncated` if over 2 MB)         |
+| POST   | `/api/ftp/save`       | Save edited text into a remote file                      |
+| POST   | `/api/ftp/upload-files` | Upload browser files (multipart) into a remote dir     |
 | POST   | `/api/ftp/raw`        | Read remote bytes (image preview)                        |
 | POST   | `/api/ftp/download-file` | Download one remote file to the browser (attachment)  |
 | POST   | `/api/ftp/download-zip`  | Download remote files/folders to the browser as a ZIP |
