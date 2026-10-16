@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { FileItem, FileService, Conflict, OverwritePolicy, UploadResult } from './services/file.service';
+import { FileItem, FileService, Conflict, OverwritePolicy, UploadResult, DiskSpace } from './services/file.service';
 import { FtpService, FtpSettings, FtpConnectionProfile } from './services/ftp.service';
 import { JobsService, JobSummary, JobDetail } from './services/jobs.service';
 import { SettingsService, AppSettings } from './services/settings.service';
@@ -40,6 +40,8 @@ interface PanelState {
   sortAsc: boolean;
   /** FTP connection settings when kind === 'ftp'. */
   ftp?: FtpSettings;
+  /** Disk usage shown in the status bar (local panels only). */
+  space?: DiskSpace | null;
 }
 @Component({
   selector: 'app-root',
@@ -886,6 +888,7 @@ export class AppComponent implements OnInit, OnDestroy {
         panel.loading = false;
         this.saveLastPaths();
         this.scrollCursorIntoView(index);
+        this.refreshSpace(panel);
       },
       error: e => {
         panel.loading = false;
@@ -899,6 +902,24 @@ export class AppComponent implements OnInit, OnDestroy {
         panel.path = previousPath;
         this.handleError(e);
       }
+    });
+  }
+
+  /** Updates the disk usage shown in a panel's status bar (local panels only). */
+  private refreshSpace(panel: PanelState): void {
+    if (panel.kind !== 'local') {
+      panel.space = null;
+      return;
+    }
+    const path = panel.path;
+    this.fileService.space(path).subscribe({
+      next: s => {
+        // Ignore late answers for a folder/panel kind we already left.
+        if (panel.kind === 'local' && panel.path === path) {
+          panel.space = s;
+        }
+      },
+      error: () => (panel.space = null)
     });
   }
 
@@ -2000,6 +2021,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.sortPanelItems(panel);
         panel.selected.clear();
         this.resetCursor(panel);
+        panel.space = null;
         // FTP connections aren't persisted; record this panel as non-local so
         // it opens at the local root next time instead of a stale path.
         this.saveLastPaths();
@@ -2023,6 +2045,20 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showFtp = false;
     this.load(index, '');
   }
+  /**
+   * Any mouse press anywhere closes the red error banners. mousedown fires
+   * before click, so an error caused by the click itself still shows up.
+   */
+  @HostListener('document:mousedown')
+  closeErrorsOnMouseDown(): void {
+    if (this.error) {
+      this.error = '';
+    }
+    if (this.editorError) {
+      this.editorError = '';
+    }
+  }
+
   dismissError(): void {
     this.error = '';
   }

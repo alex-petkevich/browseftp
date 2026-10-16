@@ -29,6 +29,13 @@ export interface Conflict {
 /** Action for the user to pick when there are collisions. */
 export type OverwritePolicy = 'replace' | 'rename' | 'resume' | 'skip';
 
+/** Disk usage of the file system holding a directory (bytes). */
+export interface DiskSpace {
+  total: number;
+  free: number;
+  used: number;
+}
+
 /** Result of a browser upload. */
 export interface UploadResult {
   uploaded: number;
@@ -43,6 +50,11 @@ export class FileService {
 
   root(): Observable<{ root: string }> {
     return this.http.get<{ root: string }>(`${this.base}/root`);
+  }
+
+  /** Total / free / used space of the disk holding a local directory. */
+  space(path: string): Observable<DiskSpace> {
+    return this.http.get<DiskSpace>(`${this.base}/space`, { params: { path } });
   }
 
   /** Application name and version (from the jar manifest). */

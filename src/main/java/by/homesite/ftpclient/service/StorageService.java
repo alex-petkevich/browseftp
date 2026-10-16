@@ -97,6 +97,31 @@ public class StorageService {
         return root.relativize(path).toString().replace('\\', '/');
     }
 
+    /** Size of the file system (disk) holding a directory, in bytes. */
+    public record DiskSpace(long total, long free, long used) {
+    }
+
+    /**
+     * Returns total / free / used space of the disk that holds the given
+     * directory (so a sub-folder on another mount reports that mount). "free"
+     * is the space available to this process; "used" excludes reserved blocks.
+     */
+    public DiskSpace diskSpace(String path) {
+        Path dir = resolve(path);
+        if (!Files.isDirectory(dir)) {
+            dir = root;
+        }
+        try {
+            java.nio.file.FileStore store = Files.getFileStore(dir);
+            long total = store.getTotalSpace();
+            long free = store.getUsableSpace();
+            long used = Math.max(0, total - store.getUnallocatedSpace());
+            return new DiskSpace(total, free, used);
+        } catch (IOException e) {
+            throw new StorageException("Cannot read disk space: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Resolves a path for downloading a single file: validates the sandbox,
      * ensures it exists and is a regular file.

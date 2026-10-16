@@ -188,8 +188,14 @@
     </div>
   </div>
   <!-- Status bar -->
-  <div class="status-bar">
-    {{ 'panel.status' | t:{ items: items.length, selected: selected.size } }}
+  <div class="status-bar d-flex align-items-center gap-2">
+    <span class="text-truncate">{{ 'panel.status' | t:{ items: items.length, selected: selected.size } }}</span>
+    <span *ngIf="space" class="ms-auto text-nowrap d-flex align-items-center"
+          [title]="'panel.diskHint' | t:{ pct: spaceUsedPct }">
+      <i class="bi bi-hdd me-1"></i>
+      <span class="disk-bar" [class.full]="spaceUsedPct >= 90"><span [style.width.%]="spaceUsedPct"></span></span>
+      {{ 'panel.disk' | t:{ used: formatBytes(space.used), free: formatBytes(space.free), total: formatBytes(space.total) } }}
+    </span>
   </div>
 </div>
 

@@ -1,6 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FileItem } from '../../services/file.service';
+import { FileItem, DiskSpace } from '../../services/file.service';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 
@@ -41,6 +41,26 @@ export class PanelComponent {
   @Input() sortAsc = true;
   /** Keyboard cursor: item index, -2 for the [..] row, -1 for none. */
   @Input() cursor = -1;
+  /** Disk usage for the status bar; null/undefined hides it (e.g. FTP). */
+  @Input() space: DiskSpace | null | undefined = null;
+
+  /** Percentage of the disk in use (0-100). */
+  get spaceUsedPct(): number {
+    const s = this.space;
+    return s && s.total > 0 ? Math.min(100, Math.round((s.used / s.total) * 100)) : 0;
+  }
+
+  /** Formats a byte count as B / KB / MB / GB / TB. */
+  formatBytes(n: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    let v = n;
+    let i = 0;
+    while (v >= 1024 && i < units.length - 1) {
+      v /= 1024;
+      i++;
+    }
+    return `${i === 0 ? v : v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
+  }
 
   @Output() activate = new EventEmitter<void>();
   @Output() openDir = new EventEmitter<FileItem>();

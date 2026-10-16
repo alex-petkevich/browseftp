@@ -44,6 +44,12 @@ public class FileController {
         return Map.of("root", storage.getRootDisplay());
     }
 
+    /** Total / free / used bytes of the disk holding the given directory. */
+    @GetMapping("/space")
+    public StorageService.DiskSpace space(@RequestParam(defaultValue = "") String path) {
+        return storage.diskSpace(path);
+    }
+
     @GetMapping("/list")
     public Map<String, Object> list(@RequestParam(defaultValue = "") String path) {
         List<FileItem> items = storage.list(path);
