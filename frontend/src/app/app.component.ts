@@ -10,6 +10,7 @@ import { SettingsService, AppSettings } from './services/settings.service';
 import { I18nService } from './i18n/i18n.service';
 import { TranslatePipe } from './i18n/translate.pipe';
 import { PanelComponent, ViewMode, PanelDropEvent } from './components/panel/panel.component';
+import { CodeEditorComponent, EditorCursor } from './components/editor/code-editor.component';
 type PanelKind = 'local' | 'ftp';
 type SortKey = 'name' | 'date' | 'size';
 interface PanelState {
@@ -35,7 +36,7 @@ interface PanelState {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, PanelComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, PanelComponent, CodeEditorComponent, TranslatePipe],
   templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -65,6 +66,22 @@ export class AppComponent implements OnInit, OnDestroy {
   private viewerPanel: PanelState | null = null;
   /** Image paths in the viewer panel's directory, in displayed order. */
   viewerImageList: string[] = [];
+  // Text editor modal state (F4)
+  /** Largest file the editor opens (same as the viewer / backend limit). */
+  readonly maxEditBytes = 2 * 1024 * 1024;
+  showEditor = false;
+  editorLoading = false;
+  editorSaving = false;
+  editorDirty = false;
+  editorName = '';
+  editorContent = '';
+  /** Error shown inside the editor modal (the main error banner is behind it). */
+  editorError = '';
+  editorPos: EditorCursor = { line: 1, col: 1 };
+  private editorPath = '';
+  /** Panel the edited file belongs to (so saving goes to the same source). */
+  private editorPanel: PanelState | null = null;
+  @ViewChild(CodeEditorComponent) codeEditor?: CodeEditorComponent;
   // FTP connection manager state
   showFtp = false;            // connection manager modal
   showFtpEditor = false;      // add/edit form modal
@@ -494,6 +511,18 @@ export class AppComponent implements OnInit, OnDestroy {
   // F6 Rename, F7 New folder, F8 Delete.
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
+    // Editor modal: Ctrl+S saves, Esc closes (unless CodeMirror used the Esc,
+    // e.g. to close its search panel). All other keys belong to the editor.
+    if (this.showEditor) {
+      if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
+        event.preventDefault();
+        this.saveEditor();
+      } else if (event.key === 'Escape' && !event.defaultPrevented) {
+        event.preventDefault();
+        this.closeEditor();
+      }
+      return;
+    }
     // Viewer modal: Esc closes it; arrows step through images.
     if (this.showViewer) {
       if (event.key === 'Escape') {
@@ -544,6 +573,10 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'F3':
         event.preventDefault();
         this.view();
+        return;
+      case 'F4':
+        event.preventDefault();
+        this.edit();
         return;
       case 'F5':
         event.preventDefault();
@@ -848,6 +881,156 @@ export class AppComponent implements OnInit, OnDestroy {
         this.handleError(e);
       }
     });
+  }
+
+  // ---- Text editor (F4) ----
+  /**
+   * Opens the selected file in the editor modal. Only regular files up to
+   * {@link maxEditBytes} are opened; binary files (NUL bytes) are refused.
+   */
+  edit(): void {
+    const paths = this.selectedPaths();
+    if (paths.length !== 1) {
+      this.error = this.i18n.t('msg.editOne');
+      return;
+    }
+    const panel = this.active;
+    const item = panel.items.find(i => i.path === paths[0]);
+    if (item && item.directory) {
+      this.error = this.i18n.t('msg.editDir');
+      return;
+    }
+    const name = paths[0].split('/').pop() ?? paths[0];
+    if (item && item.size > this.maxEditBytes) {
+      this.error = this.i18n.t('msg.editTooLarge', { name, max: this.formatBytes(this.maxEditBytes) });
+      return;
+    }
+    if (this.isImageFile(name)) {
+      this.error = this.i18n.t('msg.editBinary', { name });
+      return;
+    }
+    this.editorPanel = panel;
+    this.editorPath = paths[0];
+    this.editorName = name;
+    this.editorContent = '';
+    this.editorDirty = false;
+    this.editorSaving = false;
+    this.editorError = '';
+    this.editorPos = { line: 1, col: 1 };
+    this.editorLoading = true;
+    this.showEditor = true;
+    const request: Observable<{ name: string; content: string; truncated?: boolean }> =
+      panel.kind === 'ftp' && panel.ftp
+        ? this.ftpService.content(panel.ftp, paths[0])
+        : this.fileService.content(paths[0]);
+    request.subscribe({
+      next: res => {
+        if (!this.showEditor || this.editorPath !== paths[0]) {
+          return;
+        }
+        // Editing a truncated file would cut it off on save.
+        if (res.truncated) {
+          this.resetEditor();
+          this.error = this.i18n.t('msg.editTooLarge', { name, max: this.formatBytes(this.maxEditBytes) });
+          return;
+        }
+        if (res.content.includes('\u0000')) {
+          this.resetEditor();
+          this.error = this.i18n.t('msg.editBinary', { name });
+          return;
+        }
+        // Invalid UTF-8 was replaced by U+FFFD while reading; saving would
+        // store the replacement characters, so let the user decide.
+        if (res.content.includes('\uFFFD') && !window.confirm(this.i18n.t('msg.editEncoding', { name }))) {
+          this.resetEditor();
+          return;
+        }
+        this.editorName = res.name || name;
+        this.editorContent = res.content;
+        this.editorLoading = false;
+      },
+      error: e => {
+        this.resetEditor();
+        this.handleError(e);
+      }
+    });
+  }
+
+  /** Called by the editor component once CodeMirror is loaded (or failed to). */
+  onEditorReady(ok: boolean): void {
+    if (!ok) {
+      this.resetEditor();
+      this.error = this.i18n.t('msg.editorLoad');
+    }
+  }
+
+  /** Saves the editor text back to the file (Ctrl+S / Save button). */
+  saveEditor(): void {
+    const editor = this.codeEditor;
+    if (!this.showEditor || this.editorLoading || this.editorSaving || !editor || !editor.isReady) {
+      return;
+    }
+    const panel = this.editorPanel ?? this.active;
+    const path = this.editorPath;
+    const content = editor.getValue();
+    const bytes = new Blob([content]).size;
+    if (bytes > this.maxEditBytes) {
+      this.editorError = this.i18n.t('msg.editTooLarge', { name: this.editorName, max: this.formatBytes(this.maxEditBytes) });
+      return;
+    }
+    this.editorSaving = true;
+    this.editorError = '';
+    const request: Observable<FileItem | void> = panel.kind === 'ftp' && panel.ftp
+      ? this.ftpService.save(panel.ftp, path, content)
+      : this.fileService.save(path, content);
+    request.subscribe({
+      next: res => {
+        this.editorSaving = false;
+        if (this.showEditor && this.editorPath === path) {
+          editor.markSaved();
+          this.editorDirty = false;
+        }
+        // Update size/date in the listing without reloading (keeps the selection).
+        const item = panel.items.find(i => i.path === path);
+        if (item) {
+          item.size = (res as FileItem | undefined)?.size ?? bytes;
+          item.lastModified = (res as FileItem | undefined)?.lastModified ?? Date.now();
+        }
+      },
+      error: e => {
+        this.editorSaving = false;
+        this.editorError = e?.error?.error ?? e?.message ?? this.i18n.t('msg.unexpected');
+      }
+    });
+  }
+
+  /** Closes the editor, asking first if there are unsaved changes. */
+  closeEditor(): void {
+    if (this.editorDirty && !window.confirm(this.i18n.t('editor.discard', { name: this.editorName }))) {
+      this.codeEditor?.focus();
+      return;
+    }
+    this.resetEditor();
+  }
+
+  private resetEditor(): void {
+    this.showEditor = false;
+    this.editorLoading = false;
+    this.editorSaving = false;
+    this.editorDirty = false;
+    this.editorContent = '';
+    this.editorError = '';
+    this.editorPath = '';
+    this.editorPanel = null;
+  }
+
+  /** Warns before leaving the page while the editor has unsaved changes. */
+  @HostListener('window:beforeunload', ['$event'])
+  warnUnsavedEditor(event: BeforeUnloadEvent): void {
+    if (this.showEditor && this.editorDirty) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
   }
 
   /** Loads and shows the given image path in the viewer (used by view + prev/next). */

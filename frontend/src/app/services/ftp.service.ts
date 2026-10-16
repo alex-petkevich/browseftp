@@ -52,9 +52,16 @@ export class FtpService {
     return this.http.post(`${this.base}/raw`, { conn, path }, { responseType: 'blob' });
   }
 
-  content(conn: FtpSettings, path: string): Observable<{ name: string; path: string; content: string }> {
-    return this.http.post<{ name: string; path: string; content: string }>(
+  /** Reads a remote text file; truncated = the file is larger than the 2 MB limit. */
+  content(conn: FtpSettings, path: string)
+      : Observable<{ name: string; path: string; content: string; truncated?: boolean }> {
+    return this.http.post<{ name: string; path: string; content: string; truncated?: boolean }>(
       `${this.base}/content`, { conn, path });
+  }
+
+  /** Saves edited text (UTF-8) into a remote file. */
+  save(conn: FtpSettings, path: string, content: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/save`, { conn, path, content });
   }
 
   /** Downloads a single remote file to the browser (streamed through the server). */

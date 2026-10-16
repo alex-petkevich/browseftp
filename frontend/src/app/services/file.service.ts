@@ -104,6 +104,11 @@ export class FileService {
     return this.http.get(`${this.base}/raw`, { params: { path }, responseType: 'blob' });
   }
 
+  /** Saves edited text (UTF-8) into an existing local file. */
+  save(path: string, content: string): Observable<FileItem> {
+    return this.http.post<FileItem>(`${this.base}/save`, { path, content });
+  }
+
   content(path: string): Observable<{ path: string; name: string; size: number; content: string }> {
     return this.http.get<{ path: string; name: string; size: number; content: string }>(
       `${this.base}/content`, { params: { path } });

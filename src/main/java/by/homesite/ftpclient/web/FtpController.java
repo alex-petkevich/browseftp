@@ -43,6 +43,7 @@ public class FtpController {
     public record RenameReq(FtpConn conn, String path, String newName) {}
     public record DeleteReq(FtpConn conn, List<String> paths) {}
     public record ContentReq(FtpConn conn, String path) {}
+    public record SaveReq(FtpConn conn, String path, String content) {}
     public record UploadReq(FtpConn conn, List<String> localPaths, String remoteDir, String overwrite) {}
     public record DownloadReq(FtpConn conn, List<String> remotePaths, String localDir, String overwrite) {}
     public record CopyRemoteReq(FtpConn srcConn, FtpConn destConn, List<String> remotePaths, String remoteDir, String overwrite) {}
@@ -75,6 +76,13 @@ public class FtpController {
     public Map<String, Object> content(@RequestBody ContentReq req) {
         return ftp.readText(req.conn(), req.path());
     }
+    /** Saves edited text into a remote file (used by the editor). */
+    @PostMapping("/save")
+    public ResponseEntity<Void> save(@RequestBody SaveReq req) {
+        ftp.writeText(req.conn(), req.path(), req.content());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/raw")
     public ResponseEntity<byte[]> raw(@RequestBody ContentReq req) {
         StorageService.RawFile r = ftp.readBytes(req.conn(), req.path());

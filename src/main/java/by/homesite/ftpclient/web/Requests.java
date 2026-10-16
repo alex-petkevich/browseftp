@@ -22,6 +22,10 @@ public final class Requests {
         }
     }
 
+    /** Saves edited text into an existing file. */
+    public record SaveTextRequest(String path, String content) {
+    }
+
     public record DeleteRequest(List<String> paths) {
     }
 }

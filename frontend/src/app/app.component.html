@@ -115,6 +115,9 @@
     <button type="button" class="btn btn-sm btn-info" (click)="view()">
       <i class="bi bi-eye me-1"></i>{{ 'bar.view' | t }}
     </button>
+    <button type="button" class="btn btn-sm btn-info" (click)="edit()">
+      <i class="bi bi-pencil-square me-1"></i>{{ 'bar.edit' | t }}
+    </button>
     <button type="button" class="btn btn-sm btn-success" (click)="copy()">
       <i class="bi bi-files me-1"></i>{{ 'bar.copy' | t }}
     </button>
@@ -314,6 +317,49 @@
           <i class="bi me-1" [class.bi-code-slash]="!viewerShowSource" [class.bi-eye]="viewerShowSource"></i>{{ (viewerShowSource ? 'viewer.rendered' : 'viewer.source') | t }}
         </button>
         <button type="button" class="btn btn-primary" (click)="closeViewer()">{{ 'common.close' | t }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Text editor modal (F4) -->
+<div class="modal d-block" tabindex="-1" *ngIf="showEditor"
+     style="background: rgba(0,0,0,0.5);">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-truncate">
+          <i class="bi bi-pencil-square me-2"></i>{{ editorName }}<span *ngIf="editorDirty" class="text-warning ms-1" [title]="'editor.unsaved' | t">&#9679;</span>
+        </h5>
+        <button type="button" class="btn-close" (click)="closeEditor()"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div *ngIf="editorError" class="alert alert-danger alert-dismissible m-2 py-2" role="alert">
+          {{ editorError }}
+          <button type="button" class="btn-close py-2" (click)="editorError = ''"></button>
+        </div>
+        <div *ngIf="editorLoading" class="text-center text-muted p-3">
+          <span class="spinner-border spinner-border-sm"></span> {{ 'common.loading' | t }}
+        </div>
+        <app-code-editor *ngIf="!editorLoading"
+                         [content]="editorContent"
+                         [fileName]="editorName"
+                         [dark]="theme === 'dark'"
+                         (dirtyChange)="editorDirty = $event"
+                         (cursorChange)="editorPos = $event"
+                         (ready)="onEditorReady($event)"></app-code-editor>
+      </div>
+      <div class="modal-footer">
+        <span class="small text-muted me-auto">
+          {{ 'editor.position' | t:{ line: editorPos.line, col: editorPos.col } }}
+          <span *ngIf="editorDirty" class="text-warning ms-2">{{ 'editor.unsaved' | t }}</span>
+        </span>
+        <button type="button" class="btn btn-success" [title]="'editor.saveHint' | t"
+                [disabled]="editorLoading || editorSaving || !editorDirty" (click)="saveEditor()">
+          <span *ngIf="editorSaving" class="spinner-border spinner-border-sm me-1"></span>
+          <i *ngIf="!editorSaving" class="bi bi-save me-1"></i>{{ 'editor.save' | t }}
+        </button>
+        <button type="button" class="btn btn-outline-secondary" (click)="closeEditor()">{{ 'common.close' | t }}</button>
       </div>
     </div>
   </div>

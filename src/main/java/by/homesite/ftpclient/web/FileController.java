@@ -111,6 +111,12 @@ public class FileController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Saves edited text into an existing file (used by the editor). */
+    @PostMapping("/save")
+    public FileItem save(@RequestBody Requests.SaveTextRequest request) {
+        return storage.writeText(request.path(), request.content());
+    }
+
     @GetMapping("/content")
     public Map<String, Object> content(@RequestParam String path) {
         return storage.readText(path);

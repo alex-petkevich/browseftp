@@ -429,3 +429,12 @@ body {
 .viewer-markdown ol { padding-left: 2em; }
 .viewer-markdown input[type="checkbox"] { margin-right: 0.35em; }
 
+
+/* Text editor (F4): CodeMirror fills a fixed-height box inside the modal. */
+.code-editor-host {
+  height: 70vh;
+  border-top: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.code-editor-host .cm-editor { height: 100%; }
+.code-editor-host .cm-editor.cm-focused { outline: none; }

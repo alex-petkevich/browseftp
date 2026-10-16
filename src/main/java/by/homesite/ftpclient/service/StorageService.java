@@ -437,6 +437,13 @@ public class StorageService {
         try {
             tmp = Files.createTempFile(dest, ".upload-", ".part");
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+            // Temp files are created owner-only (rw-------); give the result
+            // the permissions of the file it replaces, or normal ones if new.
+            if (Files.exists(target)) {
+                copyPermissions(target, tmp);
+            } else {
+                setDefaultFilePermissions(tmp);
+            }
             Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             tmp = null;
         } catch (IOException e) {
@@ -549,6 +556,64 @@ public class StorageService {
             );
         } catch (IOException e) {
             throw new StorageException("Cannot read file: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Saves text (as UTF-8) into an existing file — used by the editor. The text
+     * is written to a temp file in the same directory and then moved over the
+     * original, so a failure never leaves a half-written file.
+     */
+    public FileItem writeText(String path, String content) {
+        Path target = resolve(path);
+        if (!Files.exists(target)) {
+            throw new StorageException("File does not exist: " + path);
+        }
+        if (!Files.isRegularFile(target)) {
+            throw new StorageException("Not a regular file: " + path);
+        }
+        byte[] bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > MAX_VIEW_BYTES) {
+            throw new StorageException("Content is too large to save (" + bytes.length + " bytes, limit "
+                    + MAX_VIEW_BYTES + ").");
+        }
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile(target.getParent(), ".edit-", ".part");
+            Files.write(tmp, bytes);
+            copyPermissions(target, tmp);
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            tmp = null;
+        } catch (IOException e) {
+            throw new StorageException("Cannot save '" + target.getFileName() + "': " + e.getMessage(), e);
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.deleteIfExists(tmp);
+                } catch (IOException ignored) {
+                    // best effort
+                }
+            }
+        }
+        return toItem(target);
+    }
+
+    /** Copies POSIX permissions from {@code from} to {@code to} (no-op where unsupported, e.g. Windows). */
+    private static void copyPermissions(Path from, Path to) {
+        try {
+            Files.setPosixFilePermissions(to, Files.getPosixFilePermissions(from));
+        } catch (UnsupportedOperationException | IOException ignored) {
+            // not a POSIX file system, or not permitted: keep defaults
+        }
+    }
+
+    /** Gives a new file the usual rw-r--r-- permissions (no-op where unsupported). */
+    private static void setDefaultFilePermissions(Path file) {
+        try {
+            Files.setPosixFilePermissions(file,
+                    java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+        } catch (UnsupportedOperationException | IOException ignored) {
+            // not a POSIX file system, or not permitted: keep defaults
         }
     }
 

@@ -324,15 +324,41 @@ public class FtpService {
                 if (in == null) {
                     throw new StorageException("Cannot open remote file: " + c.getReplyString());
                 }
-                byte[] bytes = in.readNBytes((int) MAX_VIEW_BYTES);
+                // Read one byte more than the limit to detect larger files; the
+                // viewer shows the first part, the editor refuses to open them.
+                byte[] bytes = in.readNBytes((int) MAX_VIEW_BYTES + 1);
+                boolean truncated = bytes.length > MAX_VIEW_BYTES;
+                if (truncated) {
+                    bytes = java.util.Arrays.copyOf(bytes, (int) MAX_VIEW_BYTES);
+                }
                 c.completePendingCommand();
                 return Map.of(
                         "name", basename(path),
                         "path", path,
-                        "content", new String(bytes, StandardCharsets.UTF_8)
+                        "content", new String(bytes, StandardCharsets.UTF_8),
+                        "truncated", truncated
                 );
             } catch (IOException e) {
                 throw new StorageException("Cannot read remote file: " + e.getMessage(), e);
+            }
+        });
+    }
+
+    /** Saves text (as UTF-8) into a remote file, replacing its content — used by the editor. */
+    public void writeText(FtpConn conn, String path, String content) {
+        byte[] bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
+        if (bytes.length > MAX_VIEW_BYTES) {
+            throw new StorageException("Content is too large to save (" + bytes.length + " bytes, limit "
+                    + MAX_VIEW_BYTES + ").");
+        }
+        withClient(conn, c -> {
+            try (InputStream in = new java.io.ByteArrayInputStream(bytes)) {
+                if (!c.storeFile(path, in)) {
+                    throw new StorageException("Cannot save remote file: " + c.getReplyString());
+                }
+                return null;
+            } catch (IOException e) {
+                throw new StorageException("Cannot save remote file: " + e.getMessage(), e);
             }
         });
     }
