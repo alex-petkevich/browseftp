@@ -15,6 +15,8 @@ export interface AppSettings {
   lastPaths?: (string | null)[];
   /** Width of the left panel in percent (15..85). */
   leftWidth?: number;
+  /** UI language ('en' default, 'de', 'ru'). */
+  language?: 'en' | 'de' | 'ru';
   /** Per-panel view mode and sort order. */
   panelPrefs?: PanelPrefs[];
 }

@@ -9,51 +9,51 @@
   <div class="panel-toolbar">
     <strong class="me-2">{{ title }}</strong>
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Navigation">
-      <button type="button" class="btn btn-outline-secondary" title="Home"
+      <button type="button" class="btn btn-outline-secondary" [title]="'panel.home' | t"
               (click)="goHome.emit(); $event.stopPropagation()">
         <i class="bi bi-house"></i>
       </button>
-      <button type="button" class="btn btn-outline-secondary" title="Up one level"
+      <button type="button" class="btn btn-outline-secondary" [title]="'panel.up' | t"
               [disabled]="atRoot" (click)="goUp.emit(); $event.stopPropagation()">
         <i class="bi bi-arrow-90deg-up"></i>
       </button>
-      <button type="button" class="btn btn-outline-secondary" title="Refresh"
+      <button type="button" class="btn btn-outline-secondary" [title]="'panel.refresh' | t"
               (click)="refresh.emit(); $event.stopPropagation()">
         <i class="bi bi-arrow-clockwise"></i>
       </button>
     </div>
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="View mode">
       <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'brief'"
-              title="Brief view" (click)="setView('brief'); $event.stopPropagation()">
+              [title]="'panel.viewBrief' | t" (click)="setView('brief'); $event.stopPropagation()">
         <i class="bi bi-list"></i>
       </button>
       <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'full'"
-              title="Full view" (click)="setView('full'); $event.stopPropagation()">
+              [title]="'panel.viewFull' | t" (click)="setView('full'); $event.stopPropagation()">
         <i class="bi bi-table"></i>
       </button>
       <button type="button" class="btn btn-outline-primary" [class.active]="viewMode === 'icons'"
-              title="Icons view" (click)="setView('icons'); $event.stopPropagation()">
+              [title]="'panel.viewIcons' | t" (click)="setView('icons'); $event.stopPropagation()">
         <i class="bi bi-grid-3x3-gap"></i>
       </button>
     </div>
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Selection">
-      <button type="button" class="btn btn-outline-secondary" title="Select all"
+      <button type="button" class="btn btn-outline-secondary" [title]="'panel.selectAll' | t"
               (click)="selectAll.emit(); $event.stopPropagation()">
         <i class="bi bi-check-all"></i>
       </button>
-      <button type="button" class="btn btn-outline-secondary" title="Deselect all"
+      <button type="button" class="btn btn-outline-secondary" [title]="'panel.deselectAll' | t"
               (click)="deselectAll.emit(); $event.stopPropagation()">
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
     <button type="button" class="btn btn-sm btn-outline-success me-2"
-            title="Download selected to my computer"
+            [title]="'panel.download' | t"
             [disabled]="selected.size === 0"
             (click)="download.emit(); $event.stopPropagation()">
       <i class="bi bi-download"></i>
     </button>
     <button type="button" class="btn btn-sm btn-outline-primary me-2"
-            title="Upload files to the current folder"
+            [title]="'panel.upload' | t"
             [disabled]="loading"
             (click)="activate.emit(); uploadInput.click(); $event.stopPropagation()">
       <i class="bi bi-upload"></i>
@@ -62,25 +62,25 @@
            (change)="onUploadPicked(uploadInput)" (click)="$event.stopPropagation()">
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Sort">
       <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'name'"
-              title="Sort by name" (click)="setSort('name'); $event.stopPropagation()">
-        Name <i class="bi" [ngClass]="sortIcon('name')"></i>
+              [title]="'panel.sortName' | t" (click)="setSort('name'); $event.stopPropagation()">
+        {{ 'col.name' | t }} <i class="bi" [ngClass]="sortIcon('name')"></i>
       </button>
       <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'date'"
-              title="Sort by date" (click)="setSort('date'); $event.stopPropagation()">
-        Date <i class="bi" [ngClass]="sortIcon('date')"></i>
+              [title]="'panel.sortDate' | t" (click)="setSort('date'); $event.stopPropagation()">
+        {{ 'col.date' | t }} <i class="bi" [ngClass]="sortIcon('date')"></i>
       </button>
       <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'size'"
-              title="Sort by size" (click)="setSort('size'); $event.stopPropagation()">
-        Size <i class="bi" [ngClass]="sortIcon('size')"></i>
+              [title]="'panel.sortSize' | t" (click)="setSort('size'); $event.stopPropagation()">
+        {{ 'col.size' | t }} <i class="bi" [ngClass]="sortIcon('size')"></i>
       </button>
     </div>
-    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" title="Settings"
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" [title]="'panel.settings' | t"
             (click)="openSettings.emit(); $event.stopPropagation()">
       <i class="bi bi-gear"></i>
     </button>
   </div>
   <!-- Current path (double-click to edit, Enter to go, Esc to cancel) -->
-  <div class="panel-path" *ngIf="!editingPath" title="Double-click to edit the path"
+  <div class="panel-path" *ngIf="!editingPath" [title]="'panel.editPath' | t"
        (dblclick)="startEditPath(); $event.stopPropagation()">{{ displayPath }}</div>
   <div class="panel-path" *ngIf="editingPath" (click)="$event.stopPropagation()">
     <input #pathInput type="text" class="form-control form-control-sm font-monospace py-0"
@@ -92,29 +92,29 @@
   <!-- Listing -->
   <div class="file-list">
     <div *ngIf="loading" class="text-center text-muted p-3">
-      <span class="spinner-border spinner-border-sm"></span> Loading...
+      <span class="spinner-border spinner-border-sm"></span> {{ 'common.loading' | t }}
     </div>
     <!-- FULL VIEW -->
     <table *ngIf="!loading && viewMode === 'full'" class="table table-sm table-hover mb-0">
       <thead class="table-light">
         <tr>
           <th class="sortable" (click)="setSort('name'); $event.stopPropagation()">
-            Name <i class="bi" [ngClass]="sortIcon('name')"></i>
+            {{ 'col.name' | t }} <i class="bi" [ngClass]="sortIcon('name')"></i>
           </th>
           <th class="text-end sortable" (click)="setSort('size'); $event.stopPropagation()">
-            Size <i class="bi" [ngClass]="sortIcon('size')"></i>
+            {{ 'col.size' | t }} <i class="bi" [ngClass]="sortIcon('size')"></i>
           </th>
           <th class="sortable" (click)="setSort('date'); $event.stopPropagation()">
-            Modified <i class="bi" [ngClass]="sortIcon('date')"></i>
+            {{ 'col.modified' | t }} <i class="bi" [ngClass]="sortIcon('date')"></i>
           </th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngIf="!atRoot" class="file-row parent-row" title="Go to parent folder"
+        <tr *ngIf="!atRoot" class="file-row parent-row" [title]="'panel.parent' | t"
             (click)="activate.emit(); $event.stopPropagation()"
             (dblclick)="goUp.emit(); $event.stopPropagation()">
           <td><i class="bi bi-arrow-90deg-up me-2"></i>[..]</td>
-          <td class="text-end">&lt;UP&gt;</td>
+          <td class="text-end">{{ 'panel.upMarker' | t }}</td>
           <td></td>
         </tr>
         <tr *ngFor="let item of items"
@@ -132,13 +132,13 @@
           <td>{{ formatDate(item) }}</td>
         </tr>
         <tr *ngIf="items.length === 0">
-          <td colspan="3" class="text-center text-muted">Empty directory</td>
+          <td colspan="3" class="text-center text-muted">{{ 'panel.empty' | t }}</td>
         </tr>
       </tbody>
     </table>
     <!-- BRIEF VIEW -->
     <div *ngIf="!loading && viewMode === 'brief'" class="brief-grid">
-      <div *ngIf="!atRoot" class="brief-item parent-row" title="Go to parent folder"
+      <div *ngIf="!atRoot" class="brief-item parent-row" [title]="'panel.parent' | t"
            (click)="activate.emit(); $event.stopPropagation()"
            (dblclick)="goUp.emit(); $event.stopPropagation()">
         <i class="bi bi-arrow-90deg-up me-1"></i>[..]
@@ -155,11 +155,11 @@
            (dblclick)="onRowDblClick(item)">
         <i class="bi me-1" [ngClass]="iconClass(item)"></i>{{ item.name }}
       </div>
-      <div *ngIf="items.length === 0" class="text-muted">Empty directory</div>
+      <div *ngIf="items.length === 0" class="text-muted">{{ 'panel.empty' | t }}</div>
     </div>
     <!-- ICONS VIEW -->
     <div *ngIf="!loading && viewMode === 'icons'" class="icon-grid">
-      <div *ngIf="!atRoot" class="icon-cell parent-row" title="Go to parent folder"
+      <div *ngIf="!atRoot" class="icon-cell parent-row" [title]="'panel.parent' | t"
            (click)="activate.emit(); $event.stopPropagation()"
            (dblclick)="goUp.emit(); $event.stopPropagation()">
         <div><i class="bi bi-arrow-90deg-up dir-icon"></i></div>
@@ -178,11 +178,12 @@
         <div><i class="bi" [ngClass]="iconClass(item)"></i></div>
         <div class="icon-name">{{ item.name }}</div>
       </div>
-      <div *ngIf="items.length === 0" class="text-muted">Empty directory</div>
+      <div *ngIf="items.length === 0" class="text-muted">{{ 'panel.empty' | t }}</div>
     </div>
   </div>
   <!-- Status bar -->
   <div class="status-bar">
-    {{ items.length }} item(s), {{ selected.size }} selected
+    {{ 'panel.status' | t:{ items: items.length, selected: selected.size } }}
   </div>
 </div>
+

@@ -6,7 +6,7 @@
       <i class="bi bi-hdd-stack me-2"></i>Tiny Ftp File Browser
     </span>
     <span class="text-light small text-truncate" *ngIf="root">
-      <i class="bi bi-folder2-open me-1"></i>Root: {{ root }}
+      <i class="bi bi-folder2-open me-1"></i>{{ 'common.root' | t }}: {{ root }}
     </span>
     <span class="text-secondary small ms-auto d-none d-md-inline">
       &copy; {{ currentYear }} Aliaksandr Piatkevich &middot;
@@ -36,7 +36,7 @@
       class="panel-wrap"
       id="panel-0"
       [style.width.%]="leftWidth"
-      [title]="panels[0].title"
+      [title]="panels[0].kind === 'local' ? ('panel.left' | t) : panels[0].title"
       [path]="panels[0].path"
       [items]="panels[0].items"
       [selected]="panels[0].selected"
@@ -64,14 +64,14 @@
     </app-panel>
 
     <!-- Draggable splitter -->
-    <div class="splitter" (mousedown)="onSplitterDown($event)" title="Drag to resize">
+    <div class="splitter" (mousedown)="onSplitterDown($event)" [title]="'panel.resize' | t">
       <div class="splitter-grip"></div>
     </div>
 
     <app-panel
       class="panel-wrap right"
       id="panel-1"
-      [title]="panels[1].title"
+      [title]="panels[1].kind === 'local' ? ('panel.right' | t) : panels[1].title"
       [path]="panels[1].path"
       [items]="panels[1].items"
       [selected]="panels[1].selected"
@@ -102,37 +102,37 @@
   <!-- Bottom operations bar -->
   <div class="bottom-bar">
     <button type="button" class="btn btn-sm btn-dark" (click)="openFtpModal()">
-      <i class="bi bi-hdd-network me-1"></i>Connect FTP
+      <i class="bi bi-hdd-network me-1"></i>{{ 'bar.connectFtp' | t }}
     </button>
-    <button type="button" class="btn btn-sm btn-outline-dark" (click)="toggleOps()" title="Operations">
-      <i class="bi bi-list-task me-1"></i>Operations
+    <button type="button" class="btn btn-sm btn-outline-dark" (click)="toggleOps()" [title]="'bar.operations' | t">
+      <i class="bi bi-list-task me-1"></i>{{ 'bar.operations' | t }}
       <span class="badge text-bg-primary ms-1" *ngIf="activeJobCount > 0">{{ activeJobCount }}</span>
       <span class="badge text-bg-secondary ms-1" *ngIf="aggregateSpeed > 0">{{ formatSpeed(aggregateSpeed) }}</span>
     </button>
     <button type="button" class="btn btn-sm btn-primary" (click)="rename()">
-      <i class="bi bi-pencil me-1"></i>Rename (F2)
+      <i class="bi bi-pencil me-1"></i>{{ 'bar.rename' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-info" (click)="view()">
-      <i class="bi bi-eye me-1"></i>View (F3)
+      <i class="bi bi-eye me-1"></i>{{ 'bar.view' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-success" (click)="copy()">
-      <i class="bi bi-files me-1"></i>Copy &rarr; (F5)
+      <i class="bi bi-files me-1"></i>{{ 'bar.copy' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-warning" (click)="move()">
-      <i class="bi bi-arrow-left-right me-1"></i>Move &rarr;  (F6)
+      <i class="bi bi-arrow-left-right me-1"></i>{{ 'bar.move' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-secondary" (click)="createDirectory()">
-      <i class="bi bi-folder-plus me-1"></i>New Folder (F7)
+      <i class="bi bi-folder-plus me-1"></i>{{ 'bar.newFolder' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-outline-warning ms-auto"
             *ngIf="active.kind === 'ftp'"
             (click)="disconnectFtp(activeIndex)">
-      <i class="bi bi-x-circle me-1"></i>Disconnect
+      <i class="bi bi-x-circle me-1"></i>{{ 'bar.disconnect' | t }}
     </button>
     <button type="button" class="btn btn-sm btn-danger"
             [class.ms-auto]="active.kind !== 'ftp'"
             (click)="remove()">
-      <i class="bi bi-trash me-1"></i>Delete (F8)
+      <i class="bi bi-trash me-1"></i>{{ 'bar.delete' | t }}
     </button>
   </div>
 </div>
@@ -143,29 +143,41 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-gear me-2"></i>Settings</h5>
+        <h5 class="modal-title"><i class="bi bi-gear me-2"></i>{{ 'settings.title' | t }}</h5>
         <button type="button" class="btn-close" (click)="showSettings = false"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-2"><strong>Managed root directory</strong></p>
+        <p class="mb-2"><strong>{{ 'settings.root' | t }}</strong></p>
         <p class="font-monospace small">{{ root }}</p>
         <hr>
-        <p class="small mb-1"><strong>Tips</strong></p>
-        <ul class="small text-muted mb-0">
-          <li>Double-click a folder to open it.</li>
-          <li>Ctrl/Cmd-click to select multiple items.</li>
-          <li>Copy/Move transfer from the active panel to the other panel.</li>
-        <p class="mb-2"><strong>Appearance</strong></p>
+        <p class="mb-2"><strong>{{ 'settings.appearance' | t }}</strong></p>
+        <div class="row g-2 align-items-center mb-2">
+          <label class="col-auto col-form-label col-form-label-sm" for="languageSelect">
+            <i class="bi bi-translate me-1"></i>{{ 'settings.language' | t }}
+          </label>
+          <div class="col-auto">
+            <select id="languageSelect" class="form-select form-select-sm"
+                    [ngModel]="i18n.lang" (ngModelChange)="changeLanguage($event)">
+              <option *ngFor="let l of i18n.languages" [ngValue]="l.code">{{ l.label }}</option>
+            </select>
+          </div>
+        </div>
         <div class="form-check form-switch mb-3">
           <input class="form-check-input" type="checkbox" role="switch" id="darkModeSwitch"
                  [checked]="theme === 'dark'" (change)="toggleTheme()">
           <label class="form-check-label" for="darkModeSwitch">
             <i class="bi me-1" [class.bi-moon-stars-fill]="theme === 'dark'" [class.bi-sun-fill]="theme === 'light'"></i>
-            Dark theme
+            {{ 'settings.darkTheme' | t }}
           </label>
         </div>
         <hr>
-          <li>Use the view buttons to switch Brief / Full / Icons layouts.</li>
+        <p class="small mb-1"><strong>{{ 'settings.tips' | t }}</strong></p>
+        <ul class="small text-muted mb-0">
+          <li>{{ 'settings.tip1' | t }}</li>
+          <li>{{ 'settings.tip2' | t }}</li>
+          <li>{{ 'settings.tip3' | t }}</li>
+          <li>{{ 'settings.tip4' | t }}</li>
+          <li>{{ 'settings.tip5' | t }}</li>
         </ul>
         <hr>
         <p class="small mb-1 text-center">
@@ -178,7 +190,7 @@
         </p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-primary" (click)="showSettings = false">Close</button>
+        <button type="button" class="btn btn-primary" (click)="showSettings = false">{{ 'common.close' | t }}</button>
       </div>
     </div>
   </div>
@@ -187,19 +199,19 @@
 <!-- Operations panel (right-side drawer) -->
 <div class="ops-panel" *ngIf="showOps">
   <div class="ops-header">
-    <strong><i class="bi bi-list-task me-2"></i>Operations</strong>
+    <strong><i class="bi bi-list-task me-2"></i>{{ 'ops.title' | t }}</strong>
     <div class="ms-auto d-flex align-items-center gap-2">
       <button type="button" class="btn btn-sm btn-outline-light"
               [disabled]="!hasCompletedJobs"
               (click)="clearCompletedJobs()"
-              title="Remove completed/failed/cancelled operations">
-        <i class="bi bi-eraser me-1"></i>Clear completed
+              [title]="'ops.clearCompletedHint' | t">
+        <i class="bi bi-eraser me-1"></i>{{ 'ops.clearCompleted' | t }}
       </button>
       <button type="button" class="btn-close btn-close-white" (click)="showOps = false"></button>
     </div>
   </div>
   <div class="ops-body">
-    <div *ngIf="!jobs.length" class="text-muted text-center p-3 small">No operations yet.</div>
+    <div *ngIf="!jobs.length" class="text-muted text-center p-3 small">{{ 'ops.empty' | t }}</div>
     <div *ngFor="let j of jobs" class="ops-item" [class.expanded]="expandedJob === j.id">
       <div class="ops-item-head" (click)="expandJob(j.id)">
         <div class="d-flex justify-content-between align-items-center">
@@ -210,7 +222,7 @@
                [class.bi-arrow-left-right]="j.kind === 'copy-remote'"
                [class.bi-trash]="j.kind === 'ftp-delete'"
                class="me-2"></i>
-            <strong>{{ j.kind }}</strong>
+            <strong>{{ 'kind.' + j.kind | t }}</strong>
           </span>
           <span class="d-flex align-items-center gap-2">
             <span class="small"
@@ -218,11 +230,11 @@
                   [class.text-danger]="j.status === 'FAILED'"
                   [class.text-warning]="j.status === 'CANCELLED'"
                   [class.text-primary]="j.status === 'RUNNING'"
-                  [class.text-muted]="j.status === 'PENDING'">{{ j.status }}</span>
+                  [class.text-muted]="j.status === 'PENDING'">{{ 'status.' + j.status | t }}</span>
             <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1"
                     *ngIf="canCancel(j)"
                     (click)="cancelJob(j, $event)"
-                    title="Interrupt this operation">
+                    [title]="'ops.cancelHint' | t">
               <i class="bi bi-stop-circle"></i>
             </button>
           </span>
@@ -236,22 +248,22 @@
         </div>
         <div class="small text-muted mt-1">
           <ng-container *ngIf="j.kind === 'ftp-delete'; else bytesView">
-            {{ j.processed }} / {{ j.total }} file(s)<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
+            {{ 'ops.files' | t:{ done: j.processed, total: j.total } }}<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
           </ng-container>
           <ng-template #bytesView>
             {{ formatBytes(j.processed) }} / {{ formatBytes(j.total) }}<span *ngIf="j.currentItem"> — {{ j.currentItem }}</span>
           </ng-template>
         </div>
         <div class="small text-primary mt-1" *ngIf="showSpeed(j)">
-          <i class="bi bi-speedometer2 me-1"></i>{{ formatSpeed(jobSpeed(j)) }}<span *ngIf="jobEtaSeconds(j) as eta"> — {{ formatDuration(eta) }} left</span>
+          <i class="bi bi-speedometer2 me-1"></i>{{ formatSpeed(jobSpeed(j)) }}<span *ngIf="jobEtaSeconds(j) as eta"> — {{ 'ops.left' | t:{ time: formatDuration(eta) } }}</span>
         </div>
         <div class="small text-muted mt-1" *ngIf="showAverageSpeed(j)">
-          <i class="bi bi-speedometer2 me-1"></i>avg {{ formatSpeed(jobAverageSpeed(j)) }}
+          <i class="bi bi-speedometer2 me-1"></i>{{ 'ops.avg' | t:{ speed: formatSpeed(jobAverageSpeed(j)) } }}
         </div>
         <div class="small text-danger" *ngIf="j.error">{{ j.error }}</div>
       </div>
       <div class="ops-item-log" *ngIf="expandedJob === j.id">
-        <div *ngIf="!expandedJobDetail" class="text-muted small p-2">Loading log...</div>
+        <div *ngIf="!expandedJobDetail" class="text-muted small p-2">{{ 'ops.loadingLog' | t }}</div>
         <pre #opsLog class="ops-log-content" *ngIf="expandedJobDetail" (scroll)="onOpsLogScroll($event)"><ng-container *ngFor="let line of expandedJobDetail.log">{{ line }}
 </ng-container></pre>
       </div>
@@ -271,12 +283,12 @@
       </div>
       <div class="modal-body">
         <div *ngIf="viewerLoading" class="text-center text-muted p-3">
-          <span class="spinner-border spinner-border-sm"></span> Loading...
+          <span class="spinner-border spinner-border-sm"></span> {{ 'common.loading' | t }}
         </div>
         <div *ngIf="!viewerLoading && viewerImageUrl" class="viewer-image-wrap">
           <img [src]="viewerImageUrl" [alt]="viewerName" class="viewer-image"
                style="cursor: zoom-in;"
-               title="Open original size in a new tab"
+               [title]="'viewer.openOriginal' | t"
                (click)="openImageInNewTab()">
         </div>
         <pre *ngIf="!viewerLoading && !viewerImageUrl" class="viewer-content">{{ viewerContent }}</pre>
@@ -285,15 +297,15 @@
         <ng-container *ngIf="viewerImageUrl && viewerImageList.length > 1">
           <span class="small text-muted me-auto">{{ viewerImageIndex + 1 }} / {{ viewerImageList.length }}</span>
           <button type="button" class="btn btn-outline-secondary" [disabled]="!hasPrevImage"
-                  (click)="prevImage()" title="Previous image">
-            <i class="bi bi-chevron-left me-1"></i>Prev
+                  (click)="prevImage()" [title]="'viewer.prevHint' | t">
+            <i class="bi bi-chevron-left me-1"></i>{{ 'viewer.prev' | t }}
           </button>
           <button type="button" class="btn btn-outline-secondary" [disabled]="!hasNextImage"
-                  (click)="nextImage()" title="Next image">
-            Next<i class="bi bi-chevron-right ms-1"></i>
+                  (click)="nextImage()" [title]="'viewer.nextHint' | t">
+            {{ 'viewer.next' | t }}<i class="bi bi-chevron-right ms-1"></i>
           </button>
         </ng-container>
-        <button type="button" class="btn btn-primary" (click)="closeViewer()">Close</button>
+        <button type="button" class="btn btn-primary" (click)="closeViewer()">{{ 'common.close' | t }}</button>
       </div>
     </div>
   </div>
@@ -305,8 +317,8 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
-          <i class="bi bi-hdd-network me-2"></i>FTP Connections
-          <span class="badge text-bg-secondary ms-2">{{ ftpTargetIndex === 0 ? 'Left panel' : 'Right panel' }}</span>
+          <i class="bi bi-hdd-network me-2"></i>{{ 'ftp.title' | t }}
+          <span class="badge text-bg-secondary ms-2">{{ (ftpTargetIndex === 0 ? 'ftp.leftPanel' : 'ftp.rightPanel') | t }}</span>
         </h5>
         <button type="button" class="btn-close" (click)="showFtp = false"></button>
       </div>
@@ -322,35 +334,35 @@
             </div>
           </button>
           <div *ngIf="!ftpConnections.length" class="text-muted p-3 text-center">
-            No saved connections yet. Click <strong>Add</strong> to create one.
+            {{ 'ftp.noConnections' | t }}
           </div>
         </div>
         <div class="ftp-log mt-3" *ngIf="ftpLog.length">
-          <label class="form-label mb-1 small fw-bold">Connection log</label>
+          <label class="form-label mb-1 small fw-bold">{{ 'ftp.log' | t }}</label>
           <pre class="ftp-log-content"><ng-container *ngFor="let line of ftpLog">{{ line }}
 </ng-container></pre>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary me-auto" (click)="ftpAdd()">
-          <i class="bi bi-plus-lg me-1"></i>Add
+          <i class="bi bi-plus-lg me-1"></i>{{ 'common.add' | t }}
         </button>
         <button type="button" class="btn btn-outline-secondary" (click)="ftpEdit()" [disabled]="ftpSelected < 0">
-          <i class="bi bi-pencil me-1"></i>Edit
+          <i class="bi bi-pencil me-1"></i>{{ 'common.edit' | t }}
         </button>
         <button type="button" class="btn btn-outline-danger" (click)="ftpDelete()" [disabled]="ftpSelected < 0">
-          <i class="bi bi-trash me-1"></i>Delete
+          <i class="bi bi-trash me-1"></i>{{ 'common.delete' | t }}
         </button>
         <button type="button" class="btn btn-outline-warning"
                 *ngIf="panels[ftpTargetIndex].kind === 'ftp'"
                 (click)="disconnectFtp(ftpTargetIndex)">
-          <i class="bi bi-x-circle me-1"></i>Disconnect
+          <i class="bi bi-x-circle me-1"></i>{{ 'bar.disconnect' | t }}
         </button>
-        <button type="button" class="btn btn-secondary" (click)="showFtp = false">Close</button>
+        <button type="button" class="btn btn-secondary" (click)="showFtp = false">{{ 'common.close' | t }}</button>
         <button type="button" class="btn btn-primary" (click)="connectFtp()"
                 [disabled]="ftpConnecting || ftpSelected < 0">
           <span *ngIf="ftpConnecting" class="spinner-border spinner-border-sm me-1"></span>
-          Connect
+          {{ 'ftp.connect' | t }}
         </button>
       </div>
     </div>
@@ -363,23 +375,23 @@
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
-          {{ conflictVerb }} — destination already contains some items
+          {{ 'conflict.title' | t:{ verb: conflictVerb } }}
         </h5>
         <button type="button" class="btn-close" (click)="cancelConflict()"></button>
       </div>
       <div class="modal-body">
         <p class="small mb-2">
-          Target: <span class="font-monospace">{{ conflictDestLabel }}</span>
+          {{ 'conflict.target' | t }}: <span class="font-monospace">{{ conflictDestLabel }}</span>
           &nbsp;&middot;&nbsp;
-          {{ conflictList.length }} conflict(s)
+          {{ 'conflict.count' | t:{ n: conflictList.length } }}
         </p>
         <div class="conflict-list mb-3">
           <table class="table table-sm">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Source</th>
-                <th>Destination (existing)</th>
+                <th>{{ 'col.name' | t }}</th>
+                <th>{{ 'conflict.source' | t }}</th>
+                <th>{{ 'conflict.destination' | t }}</th>
               </tr>
             </thead>
             <tbody>
@@ -389,43 +401,43 @@
                      [class.bi-folder-fill]="c.directory"
                      [class.bi-file-earmark]="!c.directory"></i>{{ c.name }}
                 </td>
-                <td>{{ c.directory ? '&lt;DIR&gt;' : formatBytesConflict(c.srcSize) }}</td>
-                <td>{{ c.directory ? '&lt;DIR&gt;' : formatBytesConflict(c.dstSize) }}</td>
+                <td>{{ c.directory ? ('panel.dirMarker' | t) : formatBytesConflict(c.srcSize) }}</td>
+                <td>{{ c.directory ? ('panel.dirMarker' | t) : formatBytesConflict(c.dstSize) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="fw-bold mb-2">What to do for each conflict?</p>
+        <p class="fw-bold mb-2">{{ 'conflict.question' | t }}</p>
         <div class="form-check">
           <input class="form-check-input" type="radio" id="cfRename" value="rename" [(ngModel)]="conflictPolicy">
           <label class="form-check-label" for="cfRename">
-            <strong>Rename</strong> — keep existing, save the new copy as <em>name 1</em>, <em>name 2</em>, …
+            <strong>{{ 'conflict.rename' | t }}</strong> — {{ 'conflict.renameDesc' | t }}
           </label>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="radio" id="cfReplace" value="replace" [(ngModel)]="conflictPolicy">
           <label class="form-check-label" for="cfReplace">
-            <strong>Replace</strong> — overwrite the existing item(s).
+            <strong>{{ 'conflict.replace' | t }}</strong> — {{ 'conflict.replaceDesc' | t }}
           </label>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="radio" id="cfResume" value="resume" [(ngModel)]="conflictPolicy">
           <label class="form-check-label" for="cfResume">
-            <strong>Continue (resume)</strong> — pick up partial download from where it stopped.
-            <span class="small text-muted">(falls back to <em>Replace</em> for non-download transfers)</span>
+            <strong>{{ 'conflict.resume' | t }}</strong> — {{ 'conflict.resumeDesc' | t }}
+            <span class="small text-muted">{{ 'conflict.resumeNote' | t }}</span>
           </label>
         </div>
         <div class="form-check">
           <input class="form-check-input" type="radio" id="cfSkip" value="skip" [(ngModel)]="conflictPolicy">
           <label class="form-check-label" for="cfSkip">
-            <strong>Skip</strong> — leave the existing destination alone, copy only the rest.
+            <strong>{{ 'conflict.skip' | t }}</strong> — {{ 'conflict.skipDesc' | t }}
           </label>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" (click)="cancelConflict()">Cancel</button>
+        <button type="button" class="btn btn-secondary" (click)="cancelConflict()">{{ 'common.cancel' | t }}</button>
         <button type="button" class="btn btn-primary" (click)="applyConflictPolicy()">
-          {{ conflictVerb }} with selected option
+          {{ 'conflict.apply' | t:{ verb: conflictVerb } }}
         </button>
       </div>
     </div>
@@ -438,41 +450,42 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
-          <i class="bi bi-pencil-square me-2"></i>{{ ftpEditorMode === 'add' ? 'Add connection' : 'Edit connection' }}
+          <i class="bi bi-pencil-square me-2"></i>{{ (ftpEditorMode === 'add' ? 'ftp.addTitle' : 'ftp.editTitle') | t }}
         </h5>
         <button type="button" class="btn-close" (click)="showFtpEditor = false"></button>
       </div>
       <div class="modal-body">
         <div class="mb-2">
-          <label class="form-label mb-1">Name</label>
-          <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.name" placeholder="My server">
+          <label class="form-label mb-1">{{ 'ftp.name' | t }}</label>
+          <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.name" [placeholder]="'ftp.namePlaceholder' | t">
         </div>
         <div class="mb-2">
-          <label class="form-label mb-1">Host</label>
+          <label class="form-label mb-1">{{ 'ftp.host' | t }}</label>
           <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.host" placeholder="ftp.example.com">
         </div>
         <div class="mb-2">
-          <label class="form-label mb-1">Port</label>
+          <label class="form-label mb-1">{{ 'ftp.port' | t }}</label>
           <input type="number" class="form-control form-control-sm" [(ngModel)]="ftpForm.port">
         </div>
         <div class="mb-2">
-          <label class="form-label mb-1">User</label>
+          <label class="form-label mb-1">{{ 'ftp.user' | t }}</label>
           <input type="text" class="form-control form-control-sm" [(ngModel)]="ftpForm.user" placeholder="anonymous">
         </div>
         <div class="mb-2">
-          <label class="form-label mb-1">Password</label>
+          <label class="form-label mb-1">{{ 'ftp.password' | t }}</label>
           <input type="password" class="form-control form-control-sm" [(ngModel)]="ftpForm.password">
         </div>
         <div class="form-check">
           <input type="checkbox" class="form-check-input" id="passiveCheckEdit" [(ngModel)]="ftpForm.passive">
-          <label class="form-check-label" for="passiveCheckEdit">Passive connection</label>
+          <label class="form-check-label" for="passiveCheckEdit">{{ 'ftp.passive' | t }}</label>
         </div>
-        <p class="small text-muted mt-2 mb-0">Connections are saved in your browser's local storage.</p>
+        <p class="small text-muted mt-2 mb-0">{{ 'ftp.savedNote' | t }}</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" (click)="showFtpEditor = false">Cancel</button>
-        <button type="button" class="btn btn-primary" (click)="ftpSaveEditor()">Save</button>
+        <button type="button" class="btn btn-secondary" (click)="showFtpEditor = false">{{ 'common.cancel' | t }}</button>
+        <button type="button" class="btn btn-primary" (click)="ftpSaveEditor()">{{ 'common.save' | t }}</button>
       </div>
     </div>
   </div>
 </div>
+

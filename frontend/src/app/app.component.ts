@@ -7,6 +7,8 @@ import { FileItem, FileService, Conflict, OverwritePolicy, UploadResult } from '
 import { FtpService, FtpSettings, FtpConnectionProfile } from './services/ftp.service';
 import { JobsService, JobSummary, JobDetail } from './services/jobs.service';
 import { SettingsService, AppSettings } from './services/settings.service';
+import { I18nService } from './i18n/i18n.service';
+import { TranslatePipe } from './i18n/translate.pipe';
 import { PanelComponent, ViewMode, PanelDropEvent } from './components/panel/panel.component';
 type PanelKind = 'local' | 'ftp';
 type SortKey = 'name' | 'date' | 'size';
@@ -33,7 +35,7 @@ interface PanelState {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, PanelComponent],
+  imports: [CommonModule, FormsModule, PanelComponent, TranslatePipe],
   templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -98,7 +100,8 @@ export class AppComponent implements OnInit, OnDestroy {
   /** False if loading settings failed — then we never save, to avoid clobbering server data. */
   private settingsLoadedFromServer = false;
   constructor(private fileService: FileService, private ftpService: FtpService,
-              private jobsService: JobsService, private settingsService: SettingsService) {}
+              private jobsService: JobsService, private settingsService: SettingsService,
+              public i18n: I18nService) {}
   ngOnInit(): void {
     // Load persisted settings from the server first, then start the UI. If the
     // server has none yet (or the request fails), migrate any values still in
@@ -116,7 +119,7 @@ export class AppComponent implements OnInit, OnDestroy {
         // Don't persist here: a transient load failure must not overwrite the
         // settings stored on the server with an empty/partial object.
         this.startup(this.migrateFromLocalStorage());
-        this.error = 'Cannot load settings: ' + (e?.error?.error ?? e?.message ?? 'unknown error');
+        this.error = this.i18n.t('msg.loadSettings', { error: e?.error?.error ?? e?.message ?? this.i18n.t('msg.unknownError') });
       }
     });
   }
@@ -124,6 +127,7 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Applies loaded settings and kicks off the initial data loads. */
   private startup(s: AppSettings): void {
     this.settings = s || {};
+    this.i18n.setLang(this.settings.language);
     this.applyThemeFromSettings();
     this.applyLayoutFromSettings();
     this.loadConnections();
@@ -172,7 +176,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.saveSettingsHandle = null;
       this.settingsService.save(this.settings).subscribe({
         next: () => {},
-        error: e => (this.error = 'Cannot save settings: ' + (e?.error?.error ?? e?.message ?? 'unknown error'))
+        error: e => (this.error = this.i18n.t('msg.saveSettings', { error: e?.error?.error ?? e?.message ?? this.i18n.t('msg.unknownError') }))
       });
     }, 300);
   }
@@ -229,6 +233,13 @@ export class AppComponent implements OnInit, OnDestroy {
   private applyTheme(): void {
     document.documentElement.setAttribute('data-bs-theme', this.theme);
     this.settings.theme = this.theme;
+    this.persistSettings();
+  }
+
+  /** Switches the UI language and persists the choice. */
+  changeLanguage(lang: string): void {
+    this.i18n.setLang(lang);
+    this.settings.language = this.i18n.lang;
     this.persistSettings();
   }
 
@@ -749,7 +760,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   createDirectory(): void {
-    const name = window.prompt('New directory name:');
+    const name = window.prompt(this.i18n.t('msg.newDirPrompt'));
     if (!name) {
       return;
     }
@@ -765,11 +776,11 @@ export class AppComponent implements OnInit, OnDestroy {
   rename(): void {
     const paths = this.selectedPaths();
     if (paths.length !== 1) {
-      this.error = 'Select exactly one item to rename.';
+      this.error = this.i18n.t('msg.renameOne');
       return;
     }
     const current = paths[0].split('/').pop() ?? '';
-    const newName = window.prompt('New name:', current);
+    const newName = window.prompt(this.i18n.t('msg.newNamePrompt'), current);
     if (!newName || newName === current) {
       return;
     }
@@ -785,12 +796,12 @@ export class AppComponent implements OnInit, OnDestroy {
   view(): void {
     const paths = this.selectedPaths();
     if (paths.length !== 1) {
-      this.error = 'Select exactly one file to view.';
+      this.error = this.i18n.t('msg.viewOne');
       return;
     }
     const item = this.active.items.find(i => i.path === paths[0]);
     if (item && item.directory) {
-      this.error = 'Cannot view a directory.';
+      this.error = this.i18n.t('msg.viewDir');
       return;
     }
     const panel = this.active;
@@ -873,7 +884,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }).catch(err => {
       this.viewerLoading = false;
       this.showViewer = false;
-      this.error = 'Cannot display HEIC image: ' + (err?.message ?? err);
+      this.error = this.i18n.t('msg.heic', { error: err?.message ?? err });
     });
   }
 
@@ -940,7 +951,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const panel = this.panels[index];
     const paths = Array.from(panel.selected);
     if (!paths.length) {
-      this.error = 'Nothing selected to download.';
+      this.error = this.i18n.t('msg.nothingDownload');
       return;
     }
     const singleFile = paths.length === 1
@@ -1003,13 +1014,13 @@ export class AppComponent implements OnInit, OnDestroy {
   copy(): void {
     const paths = this.selectedPaths();
     if (paths.length === 0) {
-      this.error = 'Nothing selected to copy.';
+      this.error = this.i18n.t('msg.nothingCopy');
       return;
     }
     const src = this.active;
     const dst = this.inactive;
     const destLabel = (dst.kind === 'ftp' ? 'ftp:' : '') + (dst.path || '/');
-    if (!window.confirm(`Copy ${paths.length} item(s) to ${destLabel} ?`)) {
+    if (!window.confirm(this.i18n.t('msg.confirmCopy', { n: paths.length, dest: destLabel }))) {
       return;
     }
     const result = this.transfer(src, dst, paths);
@@ -1022,13 +1033,13 @@ export class AppComponent implements OnInit, OnDestroy {
   move(): void {
     const paths = this.selectedPaths();
     if (paths.length === 0) {
-      this.error = 'Nothing selected to move.';
+      this.error = this.i18n.t('msg.nothingMove');
       return;
     }
     const src = this.active;
     const dst = this.inactive;
     const destLabel = (dst.kind === 'ftp' ? 'ftp:' : '') + (dst.path || '/');
-    if (!window.confirm(`Move ${paths.length} item(s) to ${destLabel} ?`)) {
+    if (!window.confirm(this.i18n.t('msg.confirmMove', { n: paths.length, dest: destLabel }))) {
       return;
     }
     // Move = transfer (possibly async job) to destination, then delete from source.
@@ -1116,14 +1127,14 @@ export class AppComponent implements OnInit, OnDestroy {
    * after success.
    */
   runTransfer(src: PanelState, dst: PanelState, paths: string[], destPath: string, isMove: boolean): void {
-    const verb = isMove ? 'Move' : 'Copy';
+    const verb = this.i18n.t(isMove ? 'verb.move' : 'verb.copy');
     const destLabel = (dst.kind === 'ftp' ? 'ftp:' : '') + (destPath || '/');
     const proceed = (policy: OverwritePolicy) => this.executeTransfer(src, dst, paths, destPath, isMove, policy);
     this.preflight(src, dst, paths, destPath).subscribe({
       next: conflicts => {
         if (!conflicts.length) {
           // No collisions — confirm with a simple prompt as before.
-          if (!window.confirm(`${verb} ${paths.length} item(s) to ${destLabel} ?`)) {
+          if (!window.confirm(this.i18n.t(isMove ? 'msg.confirmMove' : 'msg.confirmCopy', { n: paths.length, dest: destLabel }))) {
             return;
           }
           proceed('replace');
@@ -1210,7 +1221,7 @@ export class AppComponent implements OnInit, OnDestroy {
   uploadFiles(index: number, files: File[]): void {
     if (!files.length) return;
     if (this.uploadStatus) {
-      this.error = 'Another upload is still running.';
+      this.error = this.i18n.t('msg.uploadRunning');
       return;
     }
     const panel = this.panels[index];
@@ -1226,7 +1237,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const proceed = (policy: OverwritePolicy) =>
       this.doUpload(index, files, policy === 'resume' ? 'replace' : policy, destLabel);
     if (conflicts.length) {
-      this.openConflictModal('Upload', destLabel, conflicts, proceed);
+      this.openConflictModal(this.i18n.t('verb.upload'), destLabel, conflicts, proceed);
     } else {
       proceed('replace');
     }
@@ -1236,7 +1247,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const panel = this.panels[index];
     const path = panel.path;
     const total = files.reduce((n, f) => n + f.size, 0);
-    const label = `Uploading ${files.length} file(s) (${this.formatBytes(total)}) to ${destLabel}`;
+    const label = this.i18n.t('upload.progress', { n: files.length, size: this.formatBytes(total), dest: destLabel });
     this.uploadStatus = { label, pct: 0 };
     const request: Observable<HttpEvent<UploadResult>> = panel.kind === 'ftp' && panel.ftp
       ? this.ftpService.uploadFiles(panel.ftp, path, files, policy)
@@ -1247,12 +1258,12 @@ export class AppComponent implements OnInit, OnDestroy {
           // 100% of the browser->server transfer; the server may still be
           // writing (e.g. to FTP), so cap at 99 until the response arrives.
           const pct = ev.total ? Math.round((ev.loaded / ev.total) * 100) : 0;
-          this.uploadStatus = { label: pct >= 100 ? label + ' — saving…' : label, pct: Math.min(pct, 99) };
+          this.uploadStatus = { label: pct >= 100 ? label + ' — ' + this.i18n.t('upload.saving') : label, pct: Math.min(pct, 99) };
         } else if (ev.type === HttpEventType.Response) {
           this.uploadStatus = null;
           const skipped = ev.body?.skipped ?? 0;
           if (skipped > 0) {
-            this.error = `${skipped} file(s) skipped because they already exist.`;
+            this.error = this.i18n.t('msg.uploadSkipped', { n: skipped });
           }
           this.load(index);
         }
@@ -1335,10 +1346,10 @@ export class AppComponent implements OnInit, OnDestroy {
   remove(): void {
     const paths = this.selectedPaths();
     if (paths.length === 0) {
-      this.error = 'Nothing selected to delete.';
+      this.error = this.i18n.t('msg.nothingDelete');
       return;
     }
-    if (!window.confirm(`Delete ${paths.length} item(s)? This cannot be undone.`)) {
+    if (!window.confirm(this.i18n.t('msg.confirmDelete', { n: paths.length }))) {
       return;
     }
     const panel = this.active;
@@ -1422,7 +1433,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   ftpEdit(): void {
     if (this.ftpSelected < 0) {
-      this.error = 'Select a connection to edit.';
+      this.error = this.i18n.t('msg.selectConnEdit');
       return;
     }
     this.ftpEditorMode = 'edit';
@@ -1432,11 +1443,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   ftpDelete(): void {
     if (this.ftpSelected < 0) {
-      this.error = 'Select a connection to delete.';
+      this.error = this.i18n.t('msg.selectConnDelete');
       return;
     }
     const name = this.ftpConnections[this.ftpSelected].name;
-    if (!window.confirm('Delete connection "' + name + '"?')) {
+    if (!window.confirm(this.i18n.t('msg.confirmDeleteConn', { name }))) {
       return;
     }
     this.ftpConnections.splice(this.ftpSelected, 1);
@@ -1445,11 +1456,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   ftpSaveEditor(): void {
     if (!this.ftpForm.name) {
-      this.error = 'Connection name is required.';
+      this.error = this.i18n.t('msg.connNameRequired');
       return;
     }
     if (!this.ftpForm.host) {
-      this.error = 'FTP host is required.';
+      this.error = this.i18n.t('msg.hostRequired');
       return;
     }
     const profile: FtpConnectionProfile = { ...this.ftpForm };
@@ -1465,7 +1476,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
   connectFtp(): void {
     if (this.ftpSelected < 0 || this.ftpSelected >= this.ftpConnections.length) {
-      this.error = 'Select a connection first.';
+      this.error = this.i18n.t('msg.selectConn');
       return;
     }
     const profile = this.ftpConnections[this.ftpSelected];
@@ -1476,7 +1487,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const index = this.ftpTargetIndex;
     const panel = this.panels[index];
     this.ftpConnecting = true;
-    this.ftpLog = ['Connecting to ' + settings.host + ':' + settings.port + ' ...'];
+    this.ftpLog = [this.i18n.t('msg.connecting', { host: settings.host, port: settings.port })];
     this.ftpService.connect(settings, '').subscribe({
       next: res => {
         this.ftpConnecting = false;
@@ -1504,7 +1515,7 @@ export class AppComponent implements OnInit, OnDestroy {
       },
       error: e => {
         this.ftpConnecting = false;
-        this.ftpLog = [...this.ftpLog, 'ERROR: ' + (e?.error?.error ?? e?.message ?? 'connection failed')];
+        this.ftpLog = [...this.ftpLog, 'ERROR: ' + (e?.error?.error ?? e?.message ?? this.i18n.t('msg.connFailed'))];
         this.handleError(e);
       }
     });
@@ -1522,6 +1533,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.error = '';
   }
   private handleError(e: any): void {
-    this.error = e?.error?.error ?? e?.message ?? 'Unexpected error';
+    this.error = e?.error?.error ?? e?.message ?? this.i18n.t('msg.unexpected');
   }
 }

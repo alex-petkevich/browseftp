@@ -1,6 +1,8 @@
 import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FileItem } from '../../services/file.service';
+import { I18nService } from '../../i18n/i18n.service';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 
 export type ViewMode = 'brief' | 'full' | 'icons';
 
@@ -22,10 +24,12 @@ export interface PanelDropEvent {
 @Component({
   selector: 'app-panel',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './panel.component.html'
 })
 export class PanelComponent {
+  constructor(private i18n: I18nService) {}
+
   @Input() title = 'Panel';
   @Input() path = '';
   @Input() items: FileItem[] = [];
@@ -215,7 +219,7 @@ export class PanelComponent {
 
   formatSize(item: FileItem): string {
     if (item.directory) {
-      return '<DIR>';
+      return this.i18n.t('panel.dirMarker');
     }
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let size = item.size;
@@ -231,7 +235,7 @@ export class PanelComponent {
     if (!item.lastModified) {
       return '';
     }
-    return new Date(item.lastModified).toLocaleString();
+    return new Date(item.lastModified).toLocaleString(this.i18n.locale);
   }
 
   iconClass(item: FileItem): string {
