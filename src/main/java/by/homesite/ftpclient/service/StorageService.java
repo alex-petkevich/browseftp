@@ -394,6 +394,65 @@ public class StorageService {
         }
     }
 
+    /**
+     * Extracts a safe file name from a browser-supplied upload name (some
+     * browsers send a full client path) and validates it.
+     */
+    public static String uploadFileName(String originalName) {
+        String name = originalName == null ? "" : originalName.replace('\\', '/');
+        name = name.substring(name.lastIndexOf('/') + 1).trim();
+        validateName(name);
+        return name;
+    }
+
+    /**
+     * Stores an uploaded file into {@code dir} (relative to the root).
+     *
+     * @return the stored item, or {@code null} when it was skipped because a
+     *         file with the same name exists and the policy is SKIP
+     */
+    public FileItem storeUpload(String dir, String originalName, java.io.InputStream in, OverwritePolicy policy) {
+        String name = uploadFileName(originalName);
+        Path dest = resolve(dir);
+        if (!Files.isDirectory(dest)) {
+            throw new StorageException("Destination is not a directory: " + dir);
+        }
+        Path target = dest.resolve(name).normalize();
+        if (!target.startsWith(root)) {
+            throw new StorageException("Invalid file name: " + name);
+        }
+        if (Files.exists(target)) {
+            if (policy == OverwritePolicy.SKIP) {
+                return null;
+            }
+            if (policy == OverwritePolicy.RENAME) {
+                target = dest.resolve(uniqueName(dest, name));
+            } else if (Files.isDirectory(target)) {
+                throw new StorageException("A folder named '" + name + "' already exists");
+            }
+        }
+        // Write to a temp file first, then move into place, so a failed upload
+        // never leaves a truncated file (or destroys the one being replaced).
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile(dest, ".upload-", ".part");
+            Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            tmp = null;
+        } catch (IOException e) {
+            throw new StorageException("Cannot upload '" + name + "': " + e.getMessage(), e);
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.deleteIfExists(tmp);
+                } catch (IOException ignored) {
+                    // best effort
+                }
+            }
+        }
+        return toItem(target);
+    }
+
     /** Deletes the given paths (directories are removed recursively). */
     public void delete(List<String> paths) {
         for (String path : paths) {

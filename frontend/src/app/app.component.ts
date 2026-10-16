@@ -1,8 +1,9 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpEvent, HttpEventType } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { FileItem, FileService, Conflict, OverwritePolicy } from './services/file.service';
+import { FileItem, FileService, Conflict, OverwritePolicy, UploadResult } from './services/file.service';
 import { FtpService, FtpSettings, FtpConnectionProfile } from './services/ftp.service';
 import { JobsService, JobSummary, JobDetail } from './services/jobs.service';
 import { SettingsService, AppSettings } from './services/settings.service';
@@ -1196,6 +1197,72 @@ export class AppComponent implements OnInit, OnDestroy {
       this.showOps = true;
       this.refreshJobs();
     }
+  }
+
+  // ---- Upload from the browser ----
+  /** Shown in the progress banner while an upload is running. */
+  uploadStatus: { label: string; pct: number } | null = null;
+
+  /**
+   * Uploads files picked in the browser into the panel's current folder. If
+   * some names already exist there, the conflict dialog asks what to do.
+   */
+  uploadFiles(index: number, files: File[]): void {
+    if (!files.length) return;
+    if (this.uploadStatus) {
+      this.error = 'Another upload is still running.';
+      return;
+    }
+    const panel = this.panels[index];
+    const destLabel = (panel.kind === 'ftp' ? 'ftp:' : '') + (panel.kind === 'ftp' ? (panel.path || '/') : '/' + panel.path);
+    const existing = new Map(panel.items.map(i => [i.name, i] as const));
+    const conflicts: Conflict[] = files
+      .filter(f => existing.has(f.name))
+      .map(f => {
+        const e = existing.get(f.name)!;
+        return { name: f.name, srcPath: f.name, dstPath: e.path, srcSize: f.size,
+                 dstSize: e.directory ? -1 : e.size, directory: e.directory };
+      });
+    const proceed = (policy: OverwritePolicy) =>
+      this.doUpload(index, files, policy === 'resume' ? 'replace' : policy, destLabel);
+    if (conflicts.length) {
+      this.openConflictModal('Upload', destLabel, conflicts, proceed);
+    } else {
+      proceed('replace');
+    }
+  }
+
+  private doUpload(index: number, files: File[], policy: OverwritePolicy, destLabel: string): void {
+    const panel = this.panels[index];
+    const path = panel.path;
+    const total = files.reduce((n, f) => n + f.size, 0);
+    const label = `Uploading ${files.length} file(s) (${this.formatBytes(total)}) to ${destLabel}`;
+    this.uploadStatus = { label, pct: 0 };
+    const request: Observable<HttpEvent<UploadResult>> = panel.kind === 'ftp' && panel.ftp
+      ? this.ftpService.uploadFiles(panel.ftp, path, files, policy)
+      : this.fileService.upload(path, files, policy);
+    request.subscribe({
+      next: ev => {
+        if (ev.type === HttpEventType.UploadProgress && this.uploadStatus) {
+          // 100% of the browser->server transfer; the server may still be
+          // writing (e.g. to FTP), so cap at 99 until the response arrives.
+          const pct = ev.total ? Math.round((ev.loaded / ev.total) * 100) : 0;
+          this.uploadStatus = { label: pct >= 100 ? label + ' — saving…' : label, pct: Math.min(pct, 99) };
+        } else if (ev.type === HttpEventType.Response) {
+          this.uploadStatus = null;
+          const skipped = ev.body?.skipped ?? 0;
+          if (skipped > 0) {
+            this.error = `${skipped} file(s) skipped because they already exist.`;
+          }
+          this.load(index);
+        }
+      },
+      error: e => {
+        this.uploadStatus = null;
+        this.handleError(e);
+        this.load(index);
+      }
+    });
   }
 
   // ---- Conflict resolution modal ----

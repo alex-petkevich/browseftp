@@ -52,6 +52,14 @@
             (click)="download.emit(); $event.stopPropagation()">
       <i class="bi bi-download"></i>
     </button>
+    <button type="button" class="btn btn-sm btn-outline-primary me-2"
+            title="Upload files to the current folder"
+            [disabled]="loading"
+            (click)="activate.emit(); uploadInput.click(); $event.stopPropagation()">
+      <i class="bi bi-upload"></i>
+    </button>
+    <input #uploadInput type="file" multiple hidden
+           (change)="onUploadPicked(uploadInput)" (click)="$event.stopPropagation()">
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="Sort">
       <button type="button" class="btn btn-outline-secondary" [class.active]="sortKey === 'name'"
               title="Sort by name" (click)="setSort('name'); $event.stopPropagation()">

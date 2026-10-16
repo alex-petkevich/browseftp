@@ -14,7 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -113,6 +116,34 @@ public class FtpController {
         jobs.run(job, () -> ftp.upload(req.conn(), req.localPaths(), req.remoteDir(), job, policy));
         return Map.of("jobId", job.getId());
     }
+    /**
+     * Uploads files from the browser straight into {@code path} on the FTP
+     * server. {@code conn} is sent as a JSON part of the multipart request.
+     */
+    @PostMapping(path = "/upload-files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> uploadFiles(@RequestPart("conn") FtpConn conn,
+                                           @RequestParam(defaultValue = "/") String path,
+                                           @RequestParam(required = false) String overwrite,
+                                           @RequestParam("files") List<MultipartFile> files) {
+        OverwritePolicy policy = OverwritePolicy.parse(overwrite);
+        List<FtpService.UploadSource> sources = files.stream()
+                .<FtpService.UploadSource>map(f -> new FtpService.UploadSource() {
+                    @Override
+                    public String name() {
+                        return f.getOriginalFilename();
+                    }
+
+                    @Override
+                    public java.io.InputStream open() throws java.io.IOException {
+                        return f.getInputStream();
+                    }
+                })
+                .toList();
+        int stored = ftp.storeUploads(conn, path, sources, policy);
+        return Map.of("uploaded", stored, "skipped", files.size() - stored);
+    }
+
+
     @PostMapping("/download")
     public Map<String, Object> download(@RequestBody DownloadReq req) {
         OverwritePolicy policy = OverwritePolicy.parse(req.overwrite());

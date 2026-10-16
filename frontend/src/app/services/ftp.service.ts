@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ListResponse, Conflict, OverwritePolicy } from './file.service';
+import { ListResponse, Conflict, OverwritePolicy, UploadResult } from './file.service';
 
 export interface FtpSettings {
   host: string;
@@ -65,6 +65,17 @@ export class FtpService {
   /** Downloads several remote files/folders to the browser as a ZIP. */
   downloadZip(conn: FtpSettings, paths: string[]): Observable<Blob> {
     return this.http.post(`${this.base}/download-zip`, { conn, paths }, { responseType: 'blob' });
+  }
+
+  /** Uploads browser files straight into a remote directory; emits progress events. */
+  uploadFiles(conn: FtpSettings, path: string, files: File[],
+              overwrite?: OverwritePolicy): Observable<HttpEvent<UploadResult>> {
+    const form = new FormData();
+    form.append('conn', new Blob([JSON.stringify(conn)], { type: 'application/json' }));
+    form.append('path', path || '/');
+    if (overwrite) form.append('overwrite', overwrite);
+    files.forEach(f => form.append('files', f, f.name));
+    return this.http.post<UploadResult>(`${this.base}/upload-files`, form, { reportProgress: true, observe: 'events' });
   }
 
   /** local -> ftp */

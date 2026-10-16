@@ -20,6 +20,16 @@
     <button type="button" class="btn-close" (click)="dismissError()"></button>
   </div>
 
+  <!-- Upload progress banner -->
+  <div *ngIf="uploadStatus" class="alert alert-info m-2 py-2 d-flex align-items-center gap-2" role="status">
+    <i class="bi bi-upload"></i>
+    <span class="text-truncate">{{ uploadStatus.label }}</span>
+    <div class="progress flex-grow-1" style="height: 8px; min-width: 120px;">
+      <div class="progress-bar" [style.width.%]="uploadStatus.pct"></div>
+    </div>
+    <span class="small">{{ uploadStatus.pct }}%</span>
+  </div>
+
   <!-- Two panels -->
   <div class="panels" #panelsContainer>
     <app-panel
@@ -49,6 +59,7 @@
       (dragStartItem)="onDragStartFromPanel(0, $event)"
       (itemDrop)="onDropToPanel(0, $event)"
       (pathSubmit)="navigateTo(0, $event)"
+      (upload)="uploadFiles(0, $event)"
       (openSettings)="showSettings = true">
     </app-panel>
 
@@ -83,6 +94,7 @@
       (dragStartItem)="onDragStartFromPanel(1, $event)"
       (itemDrop)="onDropToPanel(1, $event)"
       (pathSubmit)="navigateTo(1, $event)"
+      (upload)="uploadFiles(1, $event)"
       (openSettings)="showSettings = true">
     </app-panel>
   </div>

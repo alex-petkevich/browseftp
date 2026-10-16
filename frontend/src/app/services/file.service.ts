@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface FileItem {
@@ -28,6 +28,12 @@ export interface Conflict {
 
 /** Action for the user to pick when there are collisions. */
 export type OverwritePolicy = 'replace' | 'rename' | 'resume' | 'skip';
+
+/** Result of a browser upload. */
+export interface UploadResult {
+  uploaded: number;
+  skipped: number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class FileService {
@@ -83,6 +89,16 @@ export class FileService {
   delete(paths: string[]): Observable<void> {
     return this.http.post<void>(`${this.base}/delete`, { paths });
   }
+
+  /** Uploads browser files into a local directory; emits progress events. */
+  upload(path: string, files: File[], overwrite?: OverwritePolicy): Observable<HttpEvent<UploadResult>> {
+    const form = new FormData();
+    form.append('path', path);
+    if (overwrite) form.append('overwrite', overwrite);
+    files.forEach(f => form.append('files', f, f.name));
+    return this.http.post<UploadResult>(`${this.base}/upload`, form, { reportProgress: true, observe: 'events' });
+  }
+
 
   raw(path: string): Observable<Blob> {
     return this.http.get(`${this.base}/raw`, { params: { path }, responseType: 'blob' });

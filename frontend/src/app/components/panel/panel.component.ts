@@ -50,6 +50,18 @@ export class PanelComponent {
   @Output() openSettings = new EventEmitter<void>();
   @Output() dragStartItem = new EventEmitter<FileItem>();
   @Output() itemDrop = new EventEmitter<PanelDropEvent>();
+  /** Emitted with the files the user picked for upload into the current folder. */
+  @Output() upload = new EventEmitter<File[]>();
+
+  /** Called when the hidden file input changes; emits the picked files. */
+  onUploadPicked(input: HTMLInputElement): void {
+    const files = input.files ? Array.from(input.files) : [];
+    // Reset so picking the same file again still fires (change).
+    input.value = '';
+    if (files.length) {
+      this.upload.emit(files);
+    }
+  }
   /** Emitted with the raw text when the user submits an edited path. */
   @Output() pathSubmit = new EventEmitter<string>();
 

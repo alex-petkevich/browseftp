@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
@@ -57,6 +58,27 @@ public class FileController {
     @PostMapping("/mkdir")
     public FileItem mkdir(@RequestBody Requests.CreateDirRequest request) {
         return storage.createDirectory(request.parent(), request.name());
+    }
+
+    /**
+     * Uploads files from the browser into the directory {@code path}
+     * (relative to the root). {@code overwrite} decides what happens when a
+     * file with the same name exists (replace / rename / skip).
+     */
+    @PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> upload(@RequestParam(defaultValue = "") String path,
+                                      @RequestParam(required = false) String overwrite,
+                                      @RequestParam("files") List<MultipartFile> files) throws IOException {
+        OverwritePolicy policy = OverwritePolicy.parse(overwrite);
+        int stored = 0;
+        for (MultipartFile f : files) {
+            try (java.io.InputStream in = f.getInputStream()) {
+                if (storage.storeUpload(path, f.getOriginalFilename(), in, policy) != null) {
+                    stored++;
+                }
+            }
+        }
+        return Map.of("uploaded", stored, "skipped", files.size() - stored);
     }
 
     @PostMapping("/rename")

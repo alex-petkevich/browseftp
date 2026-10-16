@@ -355,6 +355,53 @@ public class FtpService {
         });
     }
 
+    /** A file uploaded from the browser: its name and a way to open its content. */
+    public interface UploadSource {
+        String name();
+
+        InputStream open() throws IOException;
+    }
+
+    /**
+     * Stores files uploaded from the browser into {@code remoteDir} over one
+     * FTP connection.
+     *
+     * @return number of files stored (files skipped by the SKIP policy are not counted)
+     */
+    public int storeUploads(FtpConn conn, String remoteDir, List<? extends UploadSource> files,
+                            OverwritePolicy policy) {
+        FTPClient c = open(conn);
+        try {
+            String dir = remoteDir == null || remoteDir.isBlank() ? "/" : remoteDir;
+            int stored = 0;
+            for (UploadSource f : files) {
+                String name = StorageService.uploadFileName(f.name());
+                String remote = joinRemote(dir, name);
+                if (remoteExists(c, remote)) {
+                    if (policy == OverwritePolicy.SKIP) {
+                        continue;
+                    }
+                    if (policy == OverwritePolicy.RENAME) {
+                        remote = joinRemote(dir, uniqueRemoteName(c, dir, name));
+                    } else if (isDirectory(c, remote)) {
+                        throw new StorageException("A folder named '" + name + "' already exists on FTP");
+                    }
+                }
+                try (InputStream in = f.open()) {
+                    if (!c.storeFile(remote, in)) {
+                        throw new StorageException("Cannot upload '" + name + "': " + c.getReplyString());
+                    }
+                }
+                stored++;
+            }
+            return stored;
+        } catch (IOException e) {
+            throw new StorageException("FTP upload failed: " + e.getMessage(), e);
+        } finally {
+            close(c);
+        }
+    }
+
     /** Streams a single remote file to the given output (browser download). */
     public void streamFile(FtpConn conn, String path, java.io.OutputStream out) {
         FTPClient c = open(conn);
