@@ -110,16 +110,18 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngIf="!atRoot" class="file-row parent-row" [title]="'panel.parent' | t"
-            (click)="activate.emit(); $event.stopPropagation()"
+        <tr *ngIf="!atRoot" class="file-row parent-row nav-row" [title]="'panel.parent' | t"
+            [class.nav-cursor]="cursor === -2"
+            (click)="activate.emit(); parentClick.emit(); $event.stopPropagation()"
             (dblclick)="goUp.emit(); $event.stopPropagation()">
           <td><i class="bi bi-arrow-90deg-up me-2"></i>[..]</td>
           <td class="text-end">{{ 'panel.upMarker' | t }}</td>
           <td></td>
         </tr>
-        <tr *ngFor="let item of items"
-            class="file-row"
+        <tr *ngFor="let item of items; let i = index"
+            class="file-row nav-row"
             [class.selected]="isSelected(item)"
+            [class.nav-cursor]="cursor === i"
             [class.drop-target]="rowDragOverPath === item.path"
             draggable="true"
             (dragstart)="onRowDragStart(item, $event)"
@@ -138,14 +140,16 @@
     </table>
     <!-- BRIEF VIEW -->
     <div *ngIf="!loading && viewMode === 'brief'" class="brief-grid">
-      <div *ngIf="!atRoot" class="brief-item parent-row" [title]="'panel.parent' | t"
-           (click)="activate.emit(); $event.stopPropagation()"
+      <div *ngIf="!atRoot" class="brief-item parent-row nav-row" [title]="'panel.parent' | t"
+           [class.nav-cursor]="cursor === -2"
+           (click)="activate.emit(); parentClick.emit(); $event.stopPropagation()"
            (dblclick)="goUp.emit(); $event.stopPropagation()">
         <i class="bi bi-arrow-90deg-up me-1"></i>[..]
       </div>
-      <div *ngFor="let item of items"
-           class="brief-item"
+      <div *ngFor="let item of items; let i = index"
+           class="brief-item nav-row"
            [class.selected]="isSelected(item)"
+           [class.nav-cursor]="cursor === i"
            [class.drop-target]="rowDragOverPath === item.path"
            draggable="true"
            (dragstart)="onRowDragStart(item, $event)"
@@ -159,15 +163,17 @@
     </div>
     <!-- ICONS VIEW -->
     <div *ngIf="!loading && viewMode === 'icons'" class="icon-grid">
-      <div *ngIf="!atRoot" class="icon-cell parent-row" [title]="'panel.parent' | t"
-           (click)="activate.emit(); $event.stopPropagation()"
+      <div *ngIf="!atRoot" class="icon-cell parent-row nav-row" [title]="'panel.parent' | t"
+           [class.nav-cursor]="cursor === -2"
+           (click)="activate.emit(); parentClick.emit(); $event.stopPropagation()"
            (dblclick)="goUp.emit(); $event.stopPropagation()">
         <div><i class="bi bi-arrow-90deg-up dir-icon"></i></div>
         <div class="icon-name">[..]</div>
       </div>
-      <div *ngFor="let item of items"
-           class="icon-cell"
+      <div *ngFor="let item of items; let i = index"
+           class="icon-cell nav-row"
            [class.selected]="isSelected(item)"
+           [class.nav-cursor]="cursor === i"
            [class.drop-target]="rowDragOverPath === item.path"
            draggable="true"
            (dragstart)="onRowDragStart(item, $event)"

@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Angular build output copied into Spring Boot resources (frontend/build.cmd, -Pbuild-frontend)
+src/main/resources/static/

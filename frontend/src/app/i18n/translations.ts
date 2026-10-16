@@ -85,6 +85,7 @@ const en: Dict = {
   'settings.tip3': 'Copy/Move transfer from the active panel to the other panel.',
   'settings.tip4': 'Use the view buttons to switch Brief / Full / Icons layouts.',
   'settings.tip5': 'Double-click the path bar to type a folder path.',
+  'settings.tip6': 'Keyboard: arrows/PgUp/PgDn/Home/End move the cursor, Shift+arrows or Shift-click select a range, Space marks an item, Insert marks it and moves down, Enter opens a folder or [..].',
 
   // Operations panel
   'ops.title': 'Operations',
@@ -259,6 +260,7 @@ const de: Dict = {
   'settings.tip3': 'Kopieren/Verschieben überträgt vom aktiven in das andere Fenster.',
   'settings.tip4': 'Mit den Ansichtsschaltflächen zwischen Kurz-, Detail- und Symbolansicht wechseln.',
   'settings.tip5': 'Doppelklick auf die Pfadleiste, um einen Ordnerpfad einzugeben.',
+  'settings.tip6': 'Tastatur: Pfeile/Bild↑/Bild↓/Pos1/Ende bewegen den Cursor, Umschalt+Pfeile oder Umschalt-Klick wählen einen Bereich, Leertaste markiert ein Element, Einfg markiert und geht nach unten, Enter öffnet einen Ordner oder [..].',
 
   'ops.title': 'Vorgänge',
   'ops.clearCompleted': 'Abgeschlossene entfernen',
@@ -427,6 +429,7 @@ const ru: Dict = {
   'settings.tip3': 'Копирование и перемещение выполняются из активной панели в другую.',
   'settings.tip4': 'Кнопки вида переключают краткий, подробный вид и значки.',
   'settings.tip5': 'Дважды щёлкните строку пути, чтобы ввести путь к папке.',
+  'settings.tip6': 'Клавиатура: стрелки/PgUp/PgDn/Home/End двигают курсор, Shift+стрелки или Shift-щелчок выделяют диапазон, Пробел отмечает элемент, Insert отмечает и переходит ниже, Enter открывает папку или [..].',
 
   'ops.title': 'Операции',
   'ops.clearCompleted': 'Очистить завершённые',

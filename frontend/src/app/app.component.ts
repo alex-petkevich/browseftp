@@ -22,8 +22,16 @@ interface PanelState {
   selected: Set<string>;
   viewMode: ViewMode;
   loading: boolean;
-  /** Index of the keyboard cursor within items (-1 = none). */
+  /** Index of the keyboard cursor within items (-1 = none, -2 = the [..] row). */
   cursor: number;
+  /** Item index where a Shift range selection starts (-1 = none). */
+  anchor: number;
+  /**
+   * True while the selection simply follows the cursor (after a plain click or
+   * plain arrow keys). Space / Insert / Shift / Ctrl mark items explicitly and
+   * switch this off, so moving the cursor no longer changes the selection.
+   */
+  followCursor: boolean;
   /** Whether this panel shows the local filesystem or a remote FTP server. */
   kind: PanelKind;
   /** Current sort column. */
@@ -110,8 +118,8 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Tracks whether the user has scrolled the log up; when true, auto-scroll pauses. */
   private opsLogAutoStick = true;
   panels: PanelState[] = [
-    { title: 'Left', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local', sortKey: 'name', sortAsc: true },
-    { title: 'Right', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, kind: 'local', sortKey: 'name', sortAsc: true }
+    { title: 'Left', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, anchor: -1, followCursor: true, kind: 'local', sortKey: 'name', sortAsc: true },
+    { title: 'Right', path: '', home: '', items: [], selected: new Set(), viewMode: 'full', loading: false, cursor: -1, anchor: -1, followCursor: true, kind: 'local', sortKey: 'name', sortAsc: true }
   ];
   activeIndex = 0;
   /** Settings persisted server-side (theme, FTP connections, last paths). */
@@ -546,12 +554,32 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     switch (event.key) {
       case 'ArrowDown':
-        event.preventDefault();
-        this.moveCursor(1);
-        return;
       case 'ArrowUp':
+      case 'ArrowLeft':
+      case 'ArrowRight':
+      case 'PageDown':
+      case 'PageUp':
+      case 'Home':
+      case 'End': {
+        // Leave Alt/Ctrl/Meta combos to the browser (e.g. Alt+Left = back).
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+        const delta = this.navDelta(event.key);
+        if (delta === null) {
+          return;
+        }
         event.preventDefault();
-        this.moveCursor(-1);
+        this.moveCursorBy(delta, event.shiftKey, event.key === 'PageDown' || event.key === 'PageUp');
+        return;
+      }
+      case ' ':
+      case 'Insert':
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+        event.preventDefault();
+        this.toggleCursorItem(event.key === 'Insert');
         return;
       case 'Tab':
         event.preventDefault();
@@ -560,6 +588,10 @@ export class AppComponent implements OnInit, OnDestroy {
       case 'Enter': {
         event.preventDefault();
         const panel = this.active;
+        if (panel.cursor === AppComponent.PARENT_ROW) {
+          this.goUp(this.activeIndex);
+          return;
+        }
         const item = panel.items[panel.cursor];
         if (item && item.directory) {
           this.openDir(this.activeIndex, item);
@@ -596,25 +628,202 @@ export class AppComponent implements OnInit, OnDestroy {
         return;
     }
   }
-  /** Moves the keyboard cursor in the active panel and selects that item. */
-  private moveCursor(delta: number): void {
+  // ---- Keyboard cursor & selection ----
+  // The cursor moves over "rows": the [..] row (when not in the root) followed
+  // by the items. panel.cursor stores an item index, or PARENT_ROW for [..].
+
+  /** panel.cursor value for the [..] parent row. */
+  static readonly PARENT_ROW = -2;
+
+  /** True when the panel shows a [..] row (i.e. it is not at its root). */
+  private hasParentRow(panel: PanelState): boolean {
+    return !!panel.path && panel.path !== '/';
+  }
+
+  private rowCount(panel: PanelState): number {
+    return panel.items.length + (this.hasParentRow(panel) ? 1 : 0);
+  }
+
+  /** Row index of the cursor (0 = [..] when shown), or -1 when there is none. */
+  private cursorRow(panel: PanelState): number {
+    const off = this.hasParentRow(panel) ? 1 : 0;
+    if (panel.cursor === AppComponent.PARENT_ROW) {
+      return off ? 0 : -1;
+    }
+    return panel.cursor >= 0 ? panel.cursor + off : -1;
+  }
+
+  private rowToCursor(panel: PanelState, row: number): number {
+    const off = this.hasParentRow(panel) ? 1 : 0;
+    return off && row === 0 ? AppComponent.PARENT_ROW : row - off;
+  }
+
+  /** Puts the cursor on [..] (or nowhere at the root) and resets range/follow state. */
+  private resetCursor(panel: PanelState): void {
+    panel.cursor = this.hasParentRow(panel) ? AppComponent.PARENT_ROW : -1;
+    panel.anchor = -1;
+    panel.followCursor = true;
+  }
+
+  /**
+   * Row step for a navigation key in the active panel, based on the rendered
+   * layout: icons flow left-to-right (Up/Down jump a whole line), brief flows
+   * top-to-bottom in columns (Left/Right jump a whole column). Left/Right do
+   * nothing in the full (table) view. Returns null when the key doesn't apply.
+   */
+  private navDelta(key: string): number | null {
     const panel = this.active;
-    if (panel.items.length === 0) {
+    const count = this.rowCount(panel);
+    if (!count) {
+      return null;
+    }
+    const g = this.listGeometry(this.activeIndex, panel.viewMode);
+    switch (key) {
+      case 'ArrowDown': return g.vStep;
+      case 'ArrowUp': return -g.vStep;
+      case 'ArrowRight': return g.hStep ? g.hStep : null;
+      case 'ArrowLeft': return g.hStep ? -g.hStep : null;
+      case 'PageDown': return g.page;
+      case 'PageUp': return -g.page;
+      case 'Home': return -count;
+      case 'End': return count;
+      default: return null;
+    }
+  }
+
+  /** Measures the rendered listing: line/column steps and rows per page. */
+  private listGeometry(index: number, mode: ViewMode): { vStep: number; hStep: number; page: number } {
+    const list = document.querySelector<HTMLElement>(`#panel-${index} .file-list`);
+    const rows = list ? Array.from(list.querySelectorAll<HTMLElement>('.nav-row')) : [];
+    let vStep = 1;
+    let hStep = 0;
+    let perLine = 1;
+    if (rows.length && mode === 'icons') {
+      const top = rows[0].offsetTop;
+      perLine = Math.max(1, rows.filter(r => r.offsetTop === top).length);
+      vStep = perLine;
+      hStep = 1;
+    } else if (rows.length && mode === 'brief') {
+      const left = rows[0].offsetLeft;
+      perLine = Math.max(1, rows.filter(r => r.offsetLeft === left).length);
+      hStep = perLine;
+    }
+    let lines = 10;
+    if (list && rows.length) {
+      // Distance between two consecutive lines (includes grid gaps).
+      const first = rows[0];
+      const next = rows.find(r => r.offsetTop > first.offsetTop);
+      const lineHeight = next ? next.offsetTop - first.offsetTop : first.offsetHeight;
+      if (lineHeight > 0) {
+        lines = Math.max(1, Math.floor(list.clientHeight / lineHeight) - 1);
+      }
+    }
+    return { vStep, hStep, page: mode === 'icons' ? lines * perLine : lines };
+  }
+
+  /**
+   * Moves the cursor of the active panel by delta rows (clamped). With
+   * extend (Shift) the items between the anchor and the cursor are selected.
+   * For PageUp/PageDown the list scrolls by the same amount, so the cursor
+   * keeps its position on screen.
+   */
+  private moveCursorBy(delta: number, extend: boolean, keepScreenPosition = false): void {
+    const panel = this.active;
+    const count = this.rowCount(panel);
+    if (!count) {
       return;
     }
-    let idx = panel.cursor;
-    idx = idx < 0 ? (delta > 0 ? 0 : panel.items.length - 1)
-                  : Math.min(Math.max(idx + delta, 0), panel.items.length - 1);
-    panel.cursor = idx;
-    panel.selected.clear();
-    panel.selected.add(panel.items[idx].path);
-    this.scrollCursorIntoView();
+    const cur = this.cursorRow(panel);
+    const row = Math.max(0, Math.min(count - 1, cur < 0 ? (delta > 0 ? 0 : count - 1) : cur + delta));
+    const offset = keepScreenPosition ? this.cursorOffsetInView(this.activeIndex) : null;
+    if (extend && panel.anchor < 0) {
+      panel.anchor = Math.max(0, panel.cursor);
+    }
+    panel.cursor = this.rowToCursor(panel, row);
+    if (extend) {
+      this.selectRange(panel, panel.anchor, Math.max(0, panel.cursor));
+      panel.followCursor = false;
+    } else {
+      panel.anchor = panel.cursor >= 0 ? panel.cursor : -1;
+      if (panel.followCursor) {
+        panel.selected.clear();
+        const item = panel.items[panel.cursor];
+        if (item) {
+          panel.selected.add(item.path);
+        }
+      }
+    }
+    this.scrollCursorIntoView(this.activeIndex, offset);
   }
-  private scrollCursorIntoView(): void {
+
+  /** Selects exactly the items between two item indexes (inclusive). */
+  private selectRange(panel: PanelState, a: number, b: number): void {
+    if (!panel.items.length) {
+      return;
+    }
+    const from = Math.max(0, Math.min(a, b));
+    const to = Math.min(panel.items.length - 1, Math.max(a, b));
+    panel.selected = new Set(panel.items.slice(from, to + 1).map(i => i.path));
+  }
+
+  /** Space / Insert: toggles the item under the cursor; Insert also moves down. */
+  private toggleCursorItem(moveDown: boolean): void {
+    const panel = this.active;
+    if (panel.followCursor) {
+      // Switch to explicit marking: the implicit "selected because the cursor
+      // is on it" item is not a mark yet.
+      panel.selected.clear();
+      panel.followCursor = false;
+    }
+    const item = panel.cursor >= 0 ? panel.items[panel.cursor] : undefined;
+    if (item) {
+      if (panel.selected.has(item.path)) {
+        panel.selected.delete(item.path);
+      } else {
+        panel.selected.add(item.path);
+      }
+    }
+    panel.anchor = panel.cursor >= 0 ? panel.cursor : -1;
+    if (moveDown && this.cursorRow(panel) < this.rowCount(panel) - 1) {
+      this.moveCursorBy(1, false);
+    }
+  }
+
+  /** Clicking [..] puts the cursor on it. */
+  cursorToParent(index: number): void {
+    const panel = this.panels[index];
+    panel.cursor = AppComponent.PARENT_ROW;
+    panel.anchor = -1;
+    if (panel.followCursor) {
+      panel.selected.clear();
+    }
+  }
+
+  /** Distance (px) from the top of the list viewport to the cursor row, or null. */
+  private cursorOffsetInView(index: number): number | null {
+    const list = document.querySelector<HTMLElement>(`#panel-${index} .file-list`);
+    const el = list?.querySelector<HTMLElement>('.nav-cursor');
+    if (!list || !el) {
+      return null;
+    }
+    return el.getBoundingClientRect().top - list.getBoundingClientRect().top;
+  }
+
+  /**
+   * Scrolls the cursor row into view after the next render. With keepOffset
+   * the list is first scrolled so the cursor stays at that screen position.
+   */
+  private scrollCursorIntoView(index: number = this.activeIndex, keepOffset: number | null = null): void {
     setTimeout(() => {
-      const container = document.getElementById('panel-' + this.activeIndex);
-      const el = container?.querySelector('.selected') as HTMLElement | null;
-      el?.scrollIntoView({ block: 'nearest' });
+      const list = document.querySelector<HTMLElement>(`#panel-${index} .file-list`);
+      const el = list?.querySelector<HTMLElement>('.nav-cursor');
+      if (!list || !el) {
+        return;
+      }
+      if (keepOffset !== null) {
+        list.scrollTop += (el.getBoundingClientRect().top - list.getBoundingClientRect().top) - keepOffset;
+      }
+      el.scrollIntoView({ block: 'nearest' });
     });
   }
   // ---- Resizable splitter between the two panels ----
@@ -642,9 +851,17 @@ export class AppComponent implements OnInit, OnDestroy {
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
   }
-  load(index: number, path?: string, isRestore = false): void {
+  /**
+   * Loads a directory into a panel. focusPath puts the cursor on that item
+   * (e.g. the folder we just came up from); reloading the same directory keeps
+   * the cursor on the item it was on.
+   */
+  load(index: number, path?: string, isRestore = false, focusPath?: string): void {
     const panel = this.panels[index];
     const previousPath = panel.path;
+    if (focusPath === undefined && (path === undefined || path === previousPath) && panel.cursor >= 0) {
+      focusPath = panel.items[panel.cursor]?.path;
+    }
     if (path !== undefined) {
       panel.path = path;
     }
@@ -660,9 +877,15 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         this.sortPanelItems(panel);
         panel.selected.clear();
-        panel.cursor = -1;
+        this.resetCursor(panel);
+        const focusIdx = focusPath ? panel.items.findIndex(i => i.path === focusPath) : -1;
+        if (focusIdx >= 0) {
+          panel.cursor = focusIdx;
+          panel.anchor = focusIdx;
+        }
         panel.loading = false;
         this.saveLastPaths();
+        this.scrollCursorIntoView(index);
       },
       error: e => {
         panel.loading = false;
@@ -712,7 +935,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
       const idx = panel.path.lastIndexOf('/');
       const parent = idx <= 0 ? '/' : panel.path.substring(0, idx);
-      this.load(index, parent);
+      this.load(index, parent, false, panel.path);
       return;
     }
     if (!panel.path) {
@@ -720,23 +943,43 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     const parts = panel.path.split('/');
     parts.pop();
-    this.load(index, parts.join('/'));
+    this.load(index, parts.join('/'), false, panel.path);
   }
   goHome(index: number): void {
     this.load(index, this.panels[index].home);
   }
-  toggleSelect(index: number, payload: { item: FileItem; additive: boolean }): void {
+  /**
+   * Mouse selection: click selects one item, Ctrl/Cmd-click toggles an item,
+   * Shift-click selects everything between the anchor and the clicked item.
+   */
+  toggleSelect(index: number, payload: { item: FileItem; additive: boolean; range?: boolean }): void {
     const panel = this.panels[index];
-    panel.cursor = panel.items.indexOf(payload.item);
-    if (!payload.additive) {
+    const idx = panel.items.indexOf(payload.item);
+    if (idx < 0) {
+      return;
+    }
+    if (payload.range) {
+      if (panel.anchor < 0) {
+        panel.anchor = panel.cursor >= 0 ? panel.cursor : idx;
+      }
+      this.selectRange(panel, panel.anchor, idx);
+      panel.followCursor = false;
+    } else if (!payload.additive) {
       // Single click selects the item and keeps it selected.
       panel.selected.clear();
       panel.selected.add(payload.item.path);
-    } else if (panel.selected.has(payload.item.path)) {
-      panel.selected.delete(payload.item.path);
+      panel.anchor = idx;
+      panel.followCursor = true;
     } else {
-      panel.selected.add(payload.item.path);
+      if (panel.selected.has(payload.item.path)) {
+        panel.selected.delete(payload.item.path);
+      } else {
+        panel.selected.add(payload.item.path);
+      }
+      panel.anchor = idx;
+      panel.followCursor = false;
     }
+    panel.cursor = idx;
   }
   setViewMode(index: number, mode: ViewMode): void {
     this.panels[index].viewMode = mode;
@@ -758,7 +1001,10 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     const cursorPath = panel.cursor >= 0 ? panel.items[panel.cursor]?.path : null;
     this.sortPanelItems(panel);
-    panel.cursor = cursorPath ? panel.items.findIndex(i => i.path === cursorPath) : -1;
+    if (cursorPath) {
+      panel.cursor = panel.items.findIndex(i => i.path === cursorPath);
+    }
+    panel.anchor = panel.cursor >= 0 ? panel.cursor : -1;
     this.savePanelPrefs();
   }
 
@@ -783,13 +1029,24 @@ export class AppComponent implements OnInit, OnDestroy {
   selectAll(index: number): void {
     const panel = this.panels[index];
     panel.selected = new Set(panel.items.map(i => i.path));
+    panel.followCursor = false;
   }
   deselectAll(index: number): void {
-    this.panels[index].selected.clear();
+    const panel = this.panels[index];
+    panel.selected.clear();
+    panel.followCursor = true;
   }
   // ---- Bottom-bar operations (act on the active panel) ----
+  /** Paths an operation acts on: the selection, or else the item under the cursor. */
+  private effectivePaths(panel: PanelState): string[] {
+    if (panel.selected.size) {
+      return Array.from(panel.selected);
+    }
+    const item = panel.cursor >= 0 ? panel.items[panel.cursor] : undefined;
+    return item ? [item.path] : [];
+  }
   private selectedPaths(): string[] {
-    return Array.from(this.active.selected);
+    return this.effectivePaths(this.active);
   }
   private reloadBoth(): void {
     this.load(0);
@@ -1184,7 +1441,7 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   downloadSelected(index: number): void {
     const panel = this.panels[index];
-    const paths = Array.from(panel.selected);
+    const paths = this.effectivePaths(panel);
     if (!paths.length) {
       this.error = this.i18n.t('msg.nothingDownload');
       return;
@@ -1742,7 +1999,7 @@ export class AppComponent implements OnInit, OnDestroy {
         panel.items = res.items;
         this.sortPanelItems(panel);
         panel.selected.clear();
-        panel.cursor = -1;
+        this.resetCursor(panel);
         // FTP connections aren't persisted; record this panel as non-local so
         // it opens at the local root next time instead of a stale path.
         this.saveLastPaths();

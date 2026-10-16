@@ -39,13 +39,17 @@ export class PanelComponent {
   @Input() loading = false;
   @Input() sortKey: SortKey = 'name';
   @Input() sortAsc = true;
+  /** Keyboard cursor: item index, -2 for the [..] row, -1 for none. */
+  @Input() cursor = -1;
 
   @Output() activate = new EventEmitter<void>();
   @Output() openDir = new EventEmitter<FileItem>();
   @Output() goUp = new EventEmitter<void>();
   @Output() goHome = new EventEmitter<void>();
   @Output() refresh = new EventEmitter<void>();
-  @Output() toggleSelect = new EventEmitter<{ item: FileItem; additive: boolean }>();
+  @Output() toggleSelect = new EventEmitter<{ item: FileItem; additive: boolean; range: boolean }>();
+  /** Emitted when the [..] row is clicked (puts the cursor on it). */
+  @Output() parentClick = new EventEmitter<void>();
   @Output() viewModeChange = new EventEmitter<ViewMode>();
   @Output() sortChange = new EventEmitter<SortKey>();
   @Output() download = new EventEmitter<void>();
@@ -115,7 +119,7 @@ export class PanelComponent {
 
   onRowClick(item: FileItem, event: MouseEvent): void {
     this.activate.emit();
-    this.toggleSelect.emit({ item, additive: event.ctrlKey || event.metaKey });
+    this.toggleSelect.emit({ item, additive: event.ctrlKey || event.metaKey, range: event.shiftKey });
   }
 
   onRowDblClick(item: FileItem): void {

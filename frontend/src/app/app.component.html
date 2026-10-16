@@ -45,6 +45,8 @@
       [active]="activeIndex === 0"
       [sortKey]="panels[0].sortKey"
       [sortAsc]="panels[0].sortAsc"
+      [cursor]="panels[0].cursor"
+      (parentClick)="cursorToParent(0)"
       (activate)="setActive(0)"
       (openDir)="openDir(0, $event)"
       (goUp)="goUp(0)"
@@ -80,6 +82,8 @@
       [active]="activeIndex === 1"
       [sortKey]="panels[1].sortKey"
       [sortAsc]="panels[1].sortAsc"
+      [cursor]="panels[1].cursor"
+      (parentClick)="cursorToParent(1)"
       (activate)="setActive(1)"
       (openDir)="openDir(1, $event)"
       (goUp)="goUp(1)"
@@ -181,6 +185,7 @@
           <li>{{ 'settings.tip3' | t }}</li>
           <li>{{ 'settings.tip4' | t }}</li>
           <li>{{ 'settings.tip5' | t }}</li>
+          <li>{{ 'settings.tip6' | t }}</li>
         </ul>
         <hr>
         <p class="small mb-1 text-center">
