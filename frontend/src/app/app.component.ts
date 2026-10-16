@@ -53,6 +53,10 @@ export class AppComponent implements OnInit, OnDestroy {
   viewerContent = '';
   /** When set, the viewer shows this image instead of text. */
   viewerImageUrl: string | null = null;
+  /** Rendered HTML when the viewed text file is Markdown (.md); null otherwise. */
+  viewerMarkdownHtml: string | null = null;
+  /** When true, a Markdown file is shown as plain source instead of rendered. */
+  viewerShowSource = false;
   /** Relative path of the image currently shown (for prev/next + open-in-tab). */
   viewerImagePath: string | null = null;
   /** Blob of the current image, used to open it in a new tab (FTP case). */
@@ -822,6 +826,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showViewer = true;
     this.viewerLoading = true;
     this.viewerContent = '';
+    this.viewerMarkdownHtml = null;
+    this.viewerShowSource = false;
     this.releaseViewerImage();
     const request: Observable<{ name: string; content: string }> = panel.kind === 'ftp' && panel.ftp
       ? this.ftpService.content(panel.ftp, paths[0])
@@ -830,7 +836,11 @@ export class AppComponent implements OnInit, OnDestroy {
       next: res => {
         this.viewerName = res.name;
         this.viewerContent = res.content;
-        this.viewerLoading = false;
+        if (this.isMarkdownFile(res.name)) {
+          this.renderMarkdown(res.name, res.content);
+        } else {
+          this.viewerLoading = false;
+        }
       },
       error: e => {
         this.showViewer = false;
@@ -846,6 +856,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.showViewer = true;
     this.viewerLoading = true;
     this.viewerContent = '';
+    this.viewerMarkdownHtml = null;
+    this.viewerShowSource = false;
     this.releaseViewerImage();
     this.viewerImagePath = path;
     this.viewerName = path.split('/').pop() ?? path;
@@ -932,6 +944,46 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** True for Markdown files, which the viewer renders as formatted HTML. */
+  isMarkdownFile(name: string): boolean {
+    return /\.(md|markdown)$/i.test(name);
+  }
+
+  /**
+   * Renders Markdown to HTML with the "marked" library (lazy-loaded so it only
+   * downloads when a .md file is opened). The HTML is bound via [innerHTML],
+   * which Angular sanitizes (scripts, event handlers, etc. are stripped).
+   * On any failure the viewer simply falls back to the plain-text source.
+   */
+  private renderMarkdown(name: string, text: string): void {
+    import('marked')
+      .then(({ marked }) => {
+        const html = marked.parse(text, { async: false, gfm: true, breaks: false }) as string;
+        // Ignore the result if the user already closed/switched the viewer.
+        if (this.showViewer && this.viewerName === name) {
+          this.viewerMarkdownHtml = html;
+        }
+      })
+      .catch(() => (this.viewerMarkdownHtml = null))
+      .finally(() => (this.viewerLoading = false));
+  }
+
+  /**
+   * Keeps link clicks inside rendered Markdown from navigating the app away:
+   * absolute http(s) links open in a new tab, everything else is ignored.
+   */
+  onMarkdownClick(event: MouseEvent): void {
+    const a = (event.target as HTMLElement | null)?.closest('a');
+    if (!a) {
+      return;
+    }
+    event.preventDefault();
+    const href = a.getAttribute('href') ?? '';
+    if (/^https?:\/\//i.test(href)) {
+      window.open(href, '_blank', 'noopener');
+    }
+  }
+
   private isImageFile(name: string): boolean {
     return /\.(png|jpe?g|gif|bmp|webp|svg|ico|heic|heif)$/i.test(name);
   }
@@ -1003,6 +1055,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.viewerImagePath = null;
     this.viewerImageList = [];
     this.viewerPanel = null;
+    this.viewerMarkdownHtml = null;
+    this.viewerShowSource = false;
   }
   private releaseViewerImage(): void {
     if (this.viewerImageUrl) {

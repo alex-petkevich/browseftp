@@ -111,6 +111,8 @@ const en: Dict = {
   'viewer.next': 'Next',
   'viewer.prevHint': 'Previous image',
   'viewer.nextHint': 'Next image',
+  'viewer.source': 'Show source',
+  'viewer.rendered': 'Show rendered',
 
   // FTP connection manager / editor
   'ftp.title': 'FTP Connections',
@@ -269,6 +271,8 @@ const de: Dict = {
   'viewer.next': 'Weiter',
   'viewer.prevHint': 'Vorheriges Bild',
   'viewer.nextHint': 'Nächstes Bild',
+  'viewer.source': 'Quelltext anzeigen',
+  'viewer.rendered': 'Formatiert anzeigen',
 
   'ftp.title': 'FTP-Verbindungen',
   'ftp.leftPanel': 'Linkes Fenster',
@@ -423,6 +427,8 @@ const ru: Dict = {
   'viewer.next': 'Вперёд',
   'viewer.prevHint': 'Предыдущее изображение',
   'viewer.nextHint': 'Следующее изображение',
+  'viewer.source': 'Показать исходный текст',
+  'viewer.rendered': 'Показать оформленным',
 
   'ftp.title': 'FTP-подключения',
   'ftp.leftPanel': 'Левая панель',

@@ -277,7 +277,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title text-truncate">
-          <i class="bi me-2" [class.bi-image]="viewerImageUrl" [class.bi-file-earmark-text]="!viewerImageUrl"></i>{{ viewerName }}
+          <i class="bi me-2" [class.bi-image]="viewerImageUrl" [class.bi-markdown]="!viewerImageUrl && viewerMarkdownHtml !== null" [class.bi-file-earmark-text]="!viewerImageUrl && viewerMarkdownHtml === null"></i>{{ viewerName }}
         </h5>
         <button type="button" class="btn-close" (click)="closeViewer()"></button>
       </div>
@@ -291,7 +291,10 @@
                [title]="'viewer.openOriginal' | t"
                (click)="openImageInNewTab()">
         </div>
-        <pre *ngIf="!viewerLoading && !viewerImageUrl" class="viewer-content">{{ viewerContent }}</pre>
+        <div *ngIf="!viewerLoading && !viewerImageUrl && viewerMarkdownHtml !== null && !viewerShowSource"
+             class="viewer-markdown" [innerHTML]="viewerMarkdownHtml" (click)="onMarkdownClick($event)"></div>
+        <pre *ngIf="!viewerLoading && !viewerImageUrl && (viewerMarkdownHtml === null || viewerShowSource)"
+             class="viewer-content">{{ viewerContent }}</pre>
       </div>
       <div class="modal-footer">
         <ng-container *ngIf="viewerImageUrl && viewerImageList.length > 1">
@@ -305,6 +308,11 @@
             {{ 'viewer.next' | t }}<i class="bi bi-chevron-right ms-1"></i>
           </button>
         </ng-container>
+        <button type="button" class="btn btn-outline-secondary me-auto"
+                *ngIf="!viewerLoading && !viewerImageUrl && viewerMarkdownHtml !== null"
+                (click)="viewerShowSource = !viewerShowSource">
+          <i class="bi me-1" [class.bi-code-slash]="!viewerShowSource" [class.bi-eye]="viewerShowSource"></i>{{ (viewerShowSource ? 'viewer.rendered' : 'viewer.source') | t }}
+        </button>
         <button type="button" class="btn btn-primary" (click)="closeViewer()">{{ 'common.close' | t }}</button>
       </div>
     </div>
