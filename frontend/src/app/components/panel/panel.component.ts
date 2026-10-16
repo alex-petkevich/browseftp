@@ -94,7 +94,7 @@ export class PanelComponent {
   rowDragOverPath: string | null = null;
 
   get atRoot(): boolean {
-    return !this.path;
+    return !this.path || this.path === '/';
   }
 
   onRowClick(item: FileItem, event: MouseEvent): void {

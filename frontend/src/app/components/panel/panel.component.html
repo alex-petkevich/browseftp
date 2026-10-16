@@ -102,6 +102,13 @@
         </tr>
       </thead>
       <tbody>
+        <tr *ngIf="!atRoot" class="file-row parent-row" title="Go to parent folder"
+            (click)="activate.emit(); $event.stopPropagation()"
+            (dblclick)="goUp.emit(); $event.stopPropagation()">
+          <td><i class="bi bi-arrow-90deg-up me-2"></i>[..]</td>
+          <td class="text-end">&lt;UP&gt;</td>
+          <td></td>
+        </tr>
         <tr *ngFor="let item of items"
             class="file-row"
             [class.selected]="isSelected(item)"
@@ -123,6 +130,11 @@
     </table>
     <!-- BRIEF VIEW -->
     <div *ngIf="!loading && viewMode === 'brief'" class="brief-grid">
+      <div *ngIf="!atRoot" class="brief-item parent-row" title="Go to parent folder"
+           (click)="activate.emit(); $event.stopPropagation()"
+           (dblclick)="goUp.emit(); $event.stopPropagation()">
+        <i class="bi bi-arrow-90deg-up me-1"></i>[..]
+      </div>
       <div *ngFor="let item of items"
            class="brief-item"
            [class.selected]="isSelected(item)"
@@ -139,6 +151,12 @@
     </div>
     <!-- ICONS VIEW -->
     <div *ngIf="!loading && viewMode === 'icons'" class="icon-grid">
+      <div *ngIf="!atRoot" class="icon-cell parent-row" title="Go to parent folder"
+           (click)="activate.emit(); $event.stopPropagation()"
+           (dblclick)="goUp.emit(); $event.stopPropagation()">
+        <div><i class="bi bi-arrow-90deg-up dir-icon"></i></div>
+        <div class="icon-name">[..]</div>
+      </div>
       <div *ngFor="let item of items"
            class="icon-cell"
            [class.selected]="isSelected(item)"
